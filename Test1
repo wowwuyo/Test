@@ -1,0 +1,5124 @@
+Const SYNCHRONIZE = &H100000
+Const INFINITE = &HFFFFFFFF
+Private Declare Function OpenProcess Lib "kernel32" (ByVal dwDesiredAccess As Long, ByVal bInheritHandle As Long, ByVal dwProcessId As Long) As Long
+Private Declare Function CloseHandle Lib "kernel32" (ByVal hObject As Long) As Long
+Private Declare Function WaitForSingleObject Lib "kernel32" (ByVal hHandle As Long, ByVal dwMilliseconds As Long) As Long
+
+Private Declare Function GetPrivateProfileString Lib "kernel32" _
+   Alias "GetPrivateProfileStringA" (ByVal lpApplicationName As String, _
+   ByVal lpKeyName As Any, ByVal lpDefault As String, _
+   ByVal lpReturnedString As String, ByVal nSize As Long, _
+   ByVal lpFileName As String) As Long
+Private Declare Function WritePrivateProfileString Lib "kernel32" _
+   Alias "WritePrivateProfileStringA" (ByVal lpApplicationName As String, _
+   ByVal lpKeyName As Any, ByVal lpString As Any, _
+   ByVal lpFileName As String) As Long
+Private Declare Function GetProfileString Lib "kernel32" _
+    Alias "GetProfileStringA" _
+    (ByVal lpAppName As String, _
+    ByVal lpKeyName As String, _
+    ByVal lpDefault As String, _
+    ByVal lpReturnedString As String, _
+    ByVal nSize As Long) As Long
+Public DefPath As String
+Public DefDrive As String
+Dim blnMaster As Boolean
+Dim blnFactory As Boolean
+Dim blnSystem As Boolean
+Dim blnHasMaster As Boolean
+Dim byteFactoryPWD(10) As Byte
+Dim byteSystemPWD(10) As Byte
+Dim blnI210_ONLY_Serials_Output As Boolean
+
+'------------------------------------------------
+' For CopyFindFile
+Dim fso As New FileSystemObject
+Dim fld As Folder
+
+
+Private Sub CombC0_Click()
+'CombC0.AddItem "Laptop or Desktop"     1 = Laptop or desktop
+'CombC0.AddItem "DAP PC 9000 Handheld"    101 = DAP PC9000
+'CombC0.AddItem "DAP PC 9500/9800 Handheld"    108 = DAP PC9500/9800
+'CombC0.AddItem "Hewlett Packard 200LX Palmtop"    102 = HP200LX Palmtop
+'CombC0.AddItem "Micro Palm PC/3000 (8x20) Handheld"  103 = MicroPalm PC3000A (8 x 20 screen)
+'CombC0.AddItem "Micro Palm PC/3000 (10x20) Handheld"   104 = MicroPalm PC3000B (10 x 20 screen)
+'CombC0.AddItem "Micro Palm PC/3040v Handheld"   105 = MicroPalm PC3040V (1/2 wide PC screen)
+If CombC0.ListIndex > -1 Then
+   If CombC0.Text = "Laptop or Desktop" Then
+      CombC0.Tag = "1"
+   ElseIf CombC0.Text = "DAP PC 9000 Handheld" Then
+      CombC0.Tag = "101"
+   ElseIf CombC0.Text = "DAP PC 9500/9800 Handheld" Then
+      CombC0.Tag = "108"
+   ElseIf CombC0.Text = "Hewlett Packard 200LX Palmtop" Then
+      CombC0.Tag = "102"
+   ElseIf CombC0.Text = "Micro Palm PC/3000 (8x20) Handheld" Then
+      CombC0.Tag = "103"
+   ElseIf CombC0.Text = "Micro Palm PC/3000 (10x20) Handheld" Then
+      CombC0.Tag = "104"
+   ElseIf CombC0.Text = "Micro Palm PC/3040v Handheld" Then
+      CombC0.Tag = "105"
+   End If
+   If CombC0.ListIndex <> CombC0_Link.ListIndex Then
+      CombC0_Link.ListIndex = CombC0.ListIndex
+   End If
+End If
+End Sub
+
+Private Sub CombC0_Link_Click()
+If CombC0_Link.ListIndex > -1 Then
+   If Option2.Value Then
+      If CombC0_Link.ListIndex = 0 Then '"Laptop or Desktop",0
+         TxtF2_Link.Text = "D:\MMATE\PROGRAMS\"
+         TxtF3_Link.Text = "D:\MMATE\READINGS\"
+         CombG0_Link.ListIndex = 0 'COM1
+         CombG2_Link.ListIndex = 1 'com2
+         CombC3_Link.ListIndex = 1 '彩色
+         If Option1.Value = True Or Option2.Value = True Then
+            Text3.Text = "MMATE_PC"
+         End If
+      ElseIf CombC0_Link.ListIndex = 1 Then '"DAP PC 9000 Handheld",1
+         TxtF2_Link.Text = "A:\MMATE\PROGRAMS\"
+         TxtF3_Link.Text = "A:\MMATE\READINGS\"
+         CombG0_Link.ListIndex = 1 'COM2
+         CombG2_Link.ListIndex = 1 'com2
+         CombC3_Link.ListIndex = 0 '黑白
+         If Option2.Value = True Then
+            Text3.Text = "MMATE_DP"
+         End If
+      ElseIf CombC0_Link.ListIndex = 2 Then '"DAP PC 9500/9800 Handheld",2
+         TxtF2_Link.Text = "A:\MMATE\PROGRAMS\"
+         TxtF3_Link.Text = "A:\MMATE\READINGS\"
+         CombG0_Link.ListIndex = 1 'COM2
+         CombG2_Link.ListIndex = 1 'com2
+         CombC3_Link.ListIndex = 0 '黑白
+         If Option2.Value = True Then
+            Text3.Text = "MMATE_DP"
+         End If
+      ElseIf CombC0_Link.ListIndex = 3 Then '"Hewlett Packard 200LX Palmtop",3
+         TxtF2_Link.Text = "A:\MMATE\PROGRAMS\"
+         TxtF3_Link.Text = "A:\MMATE\READINGS\"
+         CombG0_Link.ListIndex = 0 'COM1
+         CombG2_Link.ListIndex = 0 'com1
+         CombC3_Link.ListIndex = 0 '黑白
+         If Option2.Value = True Then
+            Text3.Text = "MMATE_DP"
+         End If
+      ElseIf CombC0_Link.ListIndex = 4 Then '"Micro Palm PC/3000 (8x20) Handheld",4
+         TxtF2_Link.Text = "B:\MMATE\PROGRAMS\"
+         TxtF3_Link.Text = "B:\MMATE\READINGS\"
+         CombG0_Link.ListIndex = 0 'COM1
+         CombG2_Link.ListIndex = 0 'com1
+         CombC3_Link.ListIndex = 0 '黑白
+         If Option2.Value = True Then
+            Text3.Text = "MMATE_DP"
+         End If
+      ElseIf CombC0_Link.ListIndex = 5 Then '"Micro Palm PC/3000 (10x20) Handheld",5
+         TxtF2_Link.Text = "B:\MMATE\PROGRAMS\"
+         TxtF3_Link.Text = "B:\MMATE\READINGS\"
+         CombG0_Link.ListIndex = 0 'COM1
+         CombG2_Link.ListIndex = 0 'com1
+         CombC3_Link.ListIndex = 0 '黑白
+         If Option2.Value = True Then
+            Text3.Text = "MMATE_DP"
+         End If
+      ElseIf CombC0_Link.ListIndex = 6 Then '"Micro Palm PC/3040v Handheld",6
+         TxtF2_Link.Text = "C:\MMATE\PROGRAMS\"
+         TxtF3_Link.Text = "C:\MMATE\READINGS\"
+         CombG0_Link.ListIndex = 0 'COM1
+         CombG2_Link.ListIndex = 0 'com1
+         CombC3_Link.ListIndex = 0 '黑白
+         If Option2.Value = True Then
+            Text3.Text = "MMATE_DP"
+         End If
+      End If
+      TxtF2.Text = TxtF2_Link.Text
+      TxtF3.Text = TxtF3_Link.Text
+      If CombC0.ListIndex = 0 Then
+         CombG2.Enabled = True
+         CombG2.Enabled = True
+         CombG3.Enabled = True
+         CombG4.Enabled = True
+         CombG5.Enabled = True
+         CombG6.Enabled = True
+         CombG7.Enabled = True
+      Else
+         CombG2_Link.Enabled = False
+         CombG2.Enabled = False
+         CombG3.Enabled = False
+         CombG4.Enabled = False
+         CombG5.Enabled = False
+         CombG6.Enabled = False
+         CombG7.Enabled = False
+      End If
+      If CombC0.ListIndex <> CombC0_Link.ListIndex Then
+         CombC0.ListIndex = CombC0_Link.ListIndex
+      End If
+    
+   ' modified by Wuyo 2014/08/05
+   ElseIf Option1.Value Then
+        If CombC0_Link.ListIndex = 0 Then
+            Text3.Text = "MMATE_Win"
+            TxtF2_Link.Text = "C:\MMCOMM550\PROGRAMS\" ' "C:\MMCOMM\PROGRAMS\"
+            TxtF3_Link.Text = "C:\MMCOMM550\READINGS\"
+        Else
+            Text3.Text = "MMATE_Win7"
+            TxtF2_Link.Text = "C:\MMCOMM554\PROGRAMS\"
+            TxtF3_Link.Text = "C:\MMCOMM554\READINGS\"
+        End If
+   End If
+End If
+
+End Sub
+
+Private Sub CombC1_Click()
+CombC1.Tag = CombC1.ListIndex
+End Sub
+
+Private Sub CombC2_Click()
+CombC2.Tag = CombC2.ListIndex
+End Sub
+
+Private Sub CombC3_Click()
+CombC3.Tag = CombC3.ListIndex
+If CombC3.ListIndex > -1 Then
+   CombC3.Tag = CombC3.ListIndex
+   If CombC3.ListIndex <> CombC3_Link.ListIndex Then
+      CombC3_Link.ListIndex = CombC3.ListIndex
+   End If
+End If
+End Sub
+
+Private Sub CombC3_Link_Click()
+If CombC3_Link.ListIndex > -1 Then
+   If CombC3.ListIndex <> CombC3_Link.ListIndex Then
+      CombC3.ListIndex = CombC3_Link.ListIndex
+   End If
+End If
+End Sub
+
+Private Sub CombC5_Click()
+CombC5.Tag = CombC5.ListIndex
+End Sub
+
+Private Sub CombC6_Click()
+CombC6.Tag = CombC6.ListIndex
+End Sub
+
+Private Sub CombC7_Click()
+CombC7.Tag = CombC7.ListIndex
+End Sub
+
+Private Sub Combo_AutoReset_Change()
+
+End Sub
+
+Private Sub CombC8_Click()
+If CombC8.ListIndex > -1 Then
+   CombC8.Tag = CombC8.ListIndex
+End If
+End Sub
+
+Private Sub CombD0_Click()
+CombD0.Tag = CombD0.ListIndex
+End Sub
+
+Private Sub Combo_AutoTimeSync_Change()
+
+End Sub
+
+Private Sub CombD1_Click()
+CombD1.Tag = CombD1.ListIndex
+End Sub
+
+Private Sub CombD12_Click()
+CombD12.Tag = CombD12.ListIndex
+End Sub
+
+Private Sub CombD2_Click()
+CombD2.Tag = CombD2.ListIndex
+If CombD2.ListIndex = 1 Then
+   TxtD9.Enabled = True
+   TxtD10.Enabled = True
+Else
+   TxtD9.Enabled = False
+   TxtD10.Enabled = False
+End If
+End Sub
+
+Private Sub CombD3_Click()
+CombD3.Tag = CombD3.ListIndex
+End Sub
+
+Private Sub CombD4_Click()
+CombD4.Tag = CombD4.ListIndex
+End Sub
+
+Private Sub CombD5_Click()
+CombD5.Tag = CombD5.ListIndex
+End Sub
+
+Private Sub CombD6_Click()
+CombD6.Tag = CombD6.ListIndex
+End Sub
+
+Private Sub CombD7_Click()
+CombD7.Tag = CombD7.ListIndex
+End Sub
+
+Private Sub CombD8_Click()
+CombD8.Tag = CombD8.ListIndex
+End Sub
+
+Private Sub CombD11_Click()
+If CombD11.ListIndex > -1 Then
+   If CombD11.ListIndex = 2 Then
+      CombD12.Enabled = True
+   Else
+      CombD12.Enabled = False
+   End If
+   CombD11.Tag = CombD11.ListIndex
+End If
+End Sub
+
+Private Sub CombE0_Click()
+CombE0.Tag = CombE0.ListIndex
+End Sub
+
+Private Sub CombE1_Click()
+CombE1.Tag = CombE1.ListIndex
+End Sub
+
+Private Sub CombE2_Click()
+CombE2.Tag = CombE2.ListIndex
+End Sub
+
+Private Sub CombE3_Click()
+CombE3.Tag = CombE3.ListIndex
+End Sub
+
+Private Sub CombE4_Click()
+CombE4.Tag = CombE4.ListIndex
+End Sub
+
+Private Sub CombG0_Click()
+If CombG0.ListIndex > -1 Then
+   CombG0.Tag = CombG0.Text
+   If CombG0.ListIndex <> CombG0_Link.ListIndex Then
+      CombG0_Link.ListIndex = CombG0.ListIndex
+   End If
+End If
+End Sub
+
+Private Sub CombG0_Link_Click()
+If CombG0_Link.ListIndex > -1 Then
+   If CombG0.ListIndex <> CombG0_Link.ListIndex Then
+      CombG0.ListIndex = CombG0_Link.ListIndex
+   End If
+End If
+End Sub
+
+Private Sub CombG1_Click()
+If CombG1.ListIndex > -1 Then
+   CombG1.Tag = CombG1.Text
+End If
+End Sub
+
+Private Sub CombG2_Click()
+If CombG2.ListIndex > -1 Then
+   CombG2.Tag = CombG2.Text
+   If CombG2.ListIndex <> CombG2_Link.ListIndex Then
+      CombG2_Link.ListIndex = CombG2.ListIndex
+   End If
+End If
+End Sub
+
+Private Sub CombG2_Link_Click()
+If CombG2_Link.ListIndex > -1 Then
+   If CombG2.ListIndex <> CombG2_Link.ListIndex Then
+      CombG2.ListIndex = CombG2_Link.ListIndex
+   End If
+End If
+End Sub
+
+Private Sub CombG3_Click()
+If CombG3.ListIndex > -1 Then
+   CombG3.Tag = CombG3.Text
+End If
+End Sub
+
+Private Sub Combo_SealFlag_Change()
+
+End Sub
+
+Private Sub CombG4_Click()
+If CombG4.ListIndex > -1 Then
+   CombG4.Tag = CombG4.Text
+End If
+End Sub
+
+Private Sub CombG5_Click()
+If CombG5.ListIndex > -1 Then
+   CombG5.Tag = CombG5.Text
+End If
+End Sub
+
+Private Sub CombG6_Click()
+If CombG6.ListIndex > -1 Then
+   CombG6.Tag = CombG6.Text
+End If
+End Sub
+
+Private Sub CombH0_Click()
+
+CombH0.Tag = CombH0.ListIndex
+End Sub
+
+
+Private Sub CombI0_Click()
+'CombI0.AddItem "300", 0
+'CombI0.AddItem "1200", 1
+'CombI0.AddItem "2400", 2
+'CombI0.AddItem "4800", 3
+'CombI0.AddItem "9600", 4
+If CombI0.ListIndex > -1 Then
+   If CombI0.ListIndex = 0 Then
+      CombI0.Tag = "300"
+   ElseIf CombI0.ListIndex = 1 Then
+      CombI0.Tag = "1200"
+   ElseIf CombI0.ListIndex = 2 Then
+      CombI0.Tag = "2400"
+   ElseIf CombI0.ListIndex = 3 Then
+      CombI0.Tag = "4800"
+   ElseIf CombI0.ListIndex = 4 Then
+      CombI0.Tag = "9600"
+   End If
+End If
+End Sub
+
+Private Sub CombI5_Click()
+CombI5.Tag = CombI5.ListIndex
+End Sub
+
+Private Sub CombI6_Click()
+If CombI6.ListIndex > -1 Then
+   If CombI6.ListIndex = 0 Then
+      CombI6.Tag = "300"
+   ElseIf CombI6.ListIndex = 1 Then
+      CombI6.Tag = "1200"
+   ElseIf CombI6.ListIndex = 2 Then
+      CombI6.Tag = "2400"
+   ElseIf CombI6.ListIndex = 3 Then
+      CombI6.Tag = "4800"
+   ElseIf CombI6.ListIndex = 4 Then
+      CombI6.Tag = "9600"
+   End If
+End If
+End Sub
+
+Private Sub CombK0_Click()
+If CombK0.ListIndex > -1 Then
+   CombK0.Tag = CombK0.ListIndex
+End If
+End Sub
+
+Private Sub CombK1_Click()
+If CombK1.ListIndex > -1 Then
+   CombK1.Tag = CombK1.ListIndex
+End If
+End Sub
+
+Public Sub ReadINIFile()
+Dim intLoop As Integer
+Dim strTemp As String
+Dim Blnset As Boolean
+On Error GoTo Command1_Click_ERR
+
+'If Option1.Value Then
+'   If Dir(App.Path & "\MMCOMM\DOSHH\mmdos.ini")  "" Then
+'   Text1.Text = Open_FileA(App.Path & "\mmcomm")
+'ElseIf Option2.Value Then
+'   Text1.Text = Open_FileB(App.Path & "\mmcomm\doshh")
+'End If
+Text1.SelLength = Len(Text1.Text)
+
+
+If Len(Text1.Text) > 0 Then
+   Blnset = False
+   txtA0.Text = ReadINI("Copyright", LabA0.Tag, Text1.Text)
+   'If txtA0.Text <> "5.20" Then
+   '   txtA0.Text = "5.20"
+   'End If
+   txtA1.Text = ReadINI("Copyright", LabA1.Tag, Text1.Text)
+   
+   '台電要求輸入自己的定義，所以可以忽略設定~
+   TxtB0.Text = ReadINI("Customer", LabB0.Tag, Text1.Text)
+   'TxtB1.Text = ReadINI("Customer", LabB1.Tag, Text1.Text)
+   'TxtB2.Text = ReadINI("Customer", LabB2.Tag, Text1.Text)
+   
+   strTemp = ReadINI("System", LabC0.Tag, Text1.Text)
+   For intLoop = 0 To CombC0.ListCount - 1
+       If CombC0.List(intLoop) = strTemp Then
+          CombC0.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   
+   ' Wuyo 2014/03/19
+   ' 問題: 解決當輸出版本切換成Metrmate視窗版再切回MetrmateDOS版時
+   '          欄位"輸出設備類型"的選項會跑掉
+   '
+   ' 敘述: 在form load的時候就會把選項都寫入ComC0，然後再用DataLink()使ComC0_Link和ComC0一致。
+   '          在沒有加入win7這選項的時候，是用ComC0.enable的方式使Metrmate視窗版的選向停留在
+   '           "Laptop or Desktop"。反正這個選項兩邊通用所以可以用此方式。不過要加入win7這選項就必須
+   '            使所有選項重新寫入了。以上
+   If Option1.Value = False Then
+        CombC0.Clear
+        CombC0_Link.Clear
+        CombC0.AddItem "Laptop or Desktop"
+        CombC0.AddItem "DAP PC 9000 Handheld"
+        CombC0.AddItem "DAP PC 9500/9800 Handheld"
+        CombC0.AddItem "Hewlett Packard 200LX Palmtop"
+        CombC0.AddItem "Micro Palm PC/3000 (8x20) Handheld"
+        CombC0.AddItem "Micro Palm PC/3000 (10x20) Handheld"
+        CombC0.AddItem "Micro Palm PC/3040v Handheld"
+        Call DataLink
+   Else
+        CombC0.Clear
+        CombC0_Link.Clear
+        CombC0.AddItem "Laptop or Desktop"
+        CombC0.AddItem "Laptop or Desktop Win7"
+        Call DataLink
+   End If
+   
+   If Blnset = False Then
+      CombC0.ListIndex = 0 '"Laptop or Desktop"
+   End If
+   
+   If Option1.Value Then '如果輸出為Windows時，預設為Laptop or Desktop (不可改)
+      CombC0.ListIndex = 0 '"Laptop or Desktop"
+   End If
+'==============================================================================
+
+   Blnset = False
+   strTemp = ReadINI("System", LabC1.Tag, Text1.Text)
+   For intLoop = 0 To CombC1.ListCount - 1
+       If CombC1.List(intLoop) = strTemp Then
+          CombC1.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombC1.ListIndex = 1 'Default: 1=MMDDYY
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("System", LabC2.Tag, Text1.Text)
+   For intLoop = 0 To CombC2.ListCount - 1
+       If CombC2.List(intLoop) = strTemp Then
+          CombC2.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombC2.ListIndex = 1 'Default: 1=MMDDYY
+   End If
+
+   Blnset = False
+   strTemp = ReadINI("System", LabC3.Tag, Text1.Text)
+   For intLoop = 0 To CombC3.ListCount - 1
+       If CombC3.List(intLoop) = strTemp Then
+          CombC3.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombC3.ListIndex = 1 'Default: Color
+   End If
+
+   TxtC4.Text = ReadINI("System", LabC4.Tag, Text1.Text)
+   TxtC4.Tag = TxtC4.Text '不允許修改
+   
+   Blnset = False
+   strTemp = ReadINI("System", LabC5.Tag, Text1.Text)
+   For intLoop = 0 To CombC5.ListCount - 1
+       If CombC5.List(intLoop) = strTemp Then
+          CombC5.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombC5.ListIndex = 1  'Default : Always Enable
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("System", LabC6.Tag, Text1.Text)
+   For intLoop = 0 To CombC6.ListCount - 1
+       If CombC6.List(intLoop) = strTemp Then
+          CombC6.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombC6.ListIndex = 0  'Default: Provileges not set
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("System", LabC7.Tag, Text1.Text)
+   For intLoop = 0 To CombC7.ListCount - 1
+       If CombC7.List(intLoop) = strTemp Then
+          CombC7.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+          CombC7.ListIndex = 0 'Default: Don't inhibit
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("System", LabC8.Tag, Text1.Text)
+   For intLoop = 0 To CombC8.ListCount - 1
+       If CombC8.List(intLoop) = strTemp Then
+          CombC8.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombC8.ListIndex = 1 'Default: 提醒
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD0.Tag, Text1.Text)
+   For intLoop = 0 To CombD0.ListCount - 1
+       If CombD0.List(intLoop) = strTemp Then
+          CombD0.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD0.ListIndex = 0 'Default: No reset
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD1.Tag, Text1.Text)
+   For intLoop = 0 To CombD1.ListCount - 1
+       If CombD1.List(intLoop) = strTemp Then
+          CombD1.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD1.ListIndex = 1 'Default: Prompt for comment
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD2.Tag, Text1.Text)
+   For intLoop = 0 To CombD2.ListCount - 1
+       If CombD2.List(intLoop) = strTemp Then
+          CombD2.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD2.ListIndex = 0  'Default: No time sync
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD3.Tag, Text1.Text)
+   For intLoop = 0 To CombD3.ListCount - 1
+       If CombD3.List(intLoop) = strTemp Then
+          CombD3.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD3.ListIndex = 1  'Default: 1
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD4.Tag, Text1.Text)
+   For intLoop = 0 To CombD4.ListCount - 1
+       If CombD4.List(intLoop) = strTemp Then
+          CombD4.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD4.ListIndex = 0  'Default: 0
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD5.Tag, Text1.Text)
+   For intLoop = 0 To CombD5.ListCount - 1
+       If CombD5.List(intLoop) = strTemp Then
+          CombD5.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD5.ListIndex = 0  ' Default: 0
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD6.Tag, Text1.Text)
+   For intLoop = 0 To CombD6.ListCount - 1
+       If CombD6.List(intLoop) = strTemp Then
+          CombD6.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD6.ListIndex = 0 'Default: 0
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD7.Tag, Text1.Text)
+   For intLoop = 0 To CombD7.ListCount - 1
+       If CombD7.List(intLoop) = strTemp Then
+          CombD7.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD7.ListIndex = 0 ' Default: Prevent Update
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD8.Tag, Text1.Text)
+   For intLoop = 0 To CombD8.ListCount - 1
+       If CombD8.List(intLoop) = strTemp Then
+          CombD8.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD8.ListIndex = 1 'Default: 1
+   End If
+   
+   TxtD9.Text = ReadINI("Reading", LabD9.Tag, Text1.Text)
+   TxtD10.Text = ReadINI("Reading", LabD10.Tag, Text1.Text)
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD11.Tag, Text1.Text)
+   For intLoop = 0 To CombD11.ListCount - 1
+       If CombD11.List(intLoop) = strTemp Then
+          CombD11.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD11.ListIndex = 0    'Default: Full Read
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Reading", LabD12.Tag, Text1.Text)
+   For intLoop = 0 To CombD12.ListCount - 1
+       If CombD12.List(intLoop) = strTemp Then
+          CombD12.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombD12.ListIndex = 34 'Default: 35 days
+   End If
+   
+   strTemp = ReadINI("Reading", Check1.Tag, Text1.Text)
+   If Val(strTemp) = 0 Then
+      Check1.Value = 0
+   Else
+      Check1.Value = 1
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Online", LabE0.Tag, Text1.Text)
+   For intLoop = 0 To CombE0.ListCount - 1
+       If CombE0.List(intLoop) = strTemp Then
+          CombE0.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombE0.ListIndex = 1 ' Default: 1
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Online", LabE1.Tag, Text1.Text)
+   For intLoop = 0 To CombE1.ListCount - 1
+       If CombE1.List(intLoop) = strTemp Then
+          CombE1.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombE1.ListIndex = 1 ' Default: 1
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Online", LabE2.Tag, Text1.Text)
+   For intLoop = 0 To CombE2.ListCount - 1
+       If CombE2.List(intLoop) = strTemp Then
+          CombE2.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombE2.ListIndex = 1 ' Default: 1
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Online", LabE3.Tag, Text1.Text)
+   For intLoop = 0 To CombE3.ListCount - 1
+       If CombE3.List(intLoop) = strTemp Then
+          CombE3.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombE3.ListIndex = 1 ' Default: 1
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Online", LabE4.Tag, Text1.Text)
+   For intLoop = 0 To CombE4.ListCount - 1
+       If CombE4.List(intLoop) = strTemp Then
+          CombE4.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombE4.ListIndex = 0 ' Default: 0
+   End If
+   
+   TxtF0.Text = ReadINI("Files", LabF0.Tag, Text1.Text)
+   TxtF1.Text = ReadINI("Files", LabF1.Tag, Text1.Text)
+   TxtF2.Text = ReadINI("Files", LabF2.Tag, Text1.Text)
+   TxtF3.Text = ReadINI("Files", LabF3.Tag, Text1.Text)
+   If UCase(TxtF2.Text) = "C:\METRMATE\MMCOMM\PROGRAMS\" Then
+      TxtF2.Text = "C:\MMCOMM\PROGRAMS\"
+   End If
+   If UCase(TxtF3.Text) = "C:\METRMATE\MMCOMM\READINGS\" Then
+      TxtF3.Text = "C:\MMCOMM\READINGS\"
+   End If
+   Blnset = False
+   
+   strTemp = ReadINI("Online", LabG0.Tag, Text1.Text)
+   For intLoop = 0 To CombG0.ListCount - 1 - 1
+       If CombG0.List(intLoop) = strTemp Then
+          CombG0.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombG0.ListIndex = 0 ' Default: COM1
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Online", LabG1.Tag, Text1.Text)
+   For intLoop = 0 To CombG1.ListCount - 1
+       If CombG1.List(intLoop) = strTemp Then
+          CombG1.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombG1.ListIndex = 0 ' Default: 9600
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Online", LabG2.Tag, Text1.Text)
+   For intLoop = 0 To CombG2.ListCount - 1
+       If CombG2.List(intLoop) = strTemp Then
+          CombG2.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombG2.ListIndex = 1 ' Default: COM2
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Online", LabG3.Tag, Text1.Text)
+   For intLoop = 0 To CombG3.ListCount - 1
+       If CombG3.List(intLoop) = strTemp Then
+          CombG3.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombG3.ListIndex = 0 'Default: LPT1
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Online", LabG4.Tag, Text1.Text)
+   For intLoop = 0 To CombG4.ListCount - 1
+       If CombG4.List(intLoop) = strTemp Then
+          CombG4.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombG4.ListIndex = 2 '預設COM3
+   End If
+    
+   Blnset = False
+   strTemp = ReadINI("Online", LabG5.Tag, Text1.Text)
+   For intLoop = 0 To CombG5.ListCount - 1
+       If CombG5.List(intLoop) = strTemp Then
+          CombG5.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombG5.ListIndex = 0 ' Default: 9600
+   End If
+    
+   Blnset = False
+   strTemp = ReadINI("Online", LabG6.Tag, Text1.Text)
+   For intLoop = 0 To CombG6.ListCount - 1
+       If CombG6.List(intLoop) = strTemp Then
+          CombG6.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombG6.ListIndex = 0 '預設COM1
+   End If
+    
+
+   CombG7.Enabled = False
+   CombG7.ListIndex = 0
+   
+   Blnset = False
+   strTemp = ReadINI("Seal", LabH0.Tag, Text1.Text)
+   For intLoop = 0 To CombH0.ListCount - 1
+       If CombH0.List(intLoop) = strTemp Then
+          CombH0.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombH0.ListIndex = 0 ' Default: Don't seal
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Modem", LabI0.Tag, Text1.Text)
+   For intLoop = 0 To CombI0.ListCount - 1
+       If CombI0.List(intLoop) = strTemp Then
+          CombI0.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombI0.ListIndex = 2   'Default: 2400,但設定是9600
+   End If
+   
+   TxtI1.Text = ReadINI("Modem", LabI1.Tag, Text1.Text)
+   TxtI2.Text = ReadINI("Modem", LabI2.Tag, Text1.Text)
+   TxtI3.Text = ReadINI("Modem", LabI3.Tag, Text1.Text)
+   TxtI4.Text = ReadINI("Modem", LabI4.Tag, Text1.Text)
+   
+   Blnset = False
+   strTemp = ReadINI("Modem", LabI5.Tag, Text1.Text)
+   For intLoop = 0 To CombI5.ListCount - 1
+       If CombI5.List(intLoop) = strTemp Then
+          CombI5.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombI5.ListIndex = 0  ' Default: 0
+   End If
+   
+   Blnset = False
+   strTemp = ReadINI("Modem", LabI6.Tag, Text1.Text)
+   For intLoop = 0 To CombI6.ListCount - 1
+       If CombI6.List(intLoop) = strTemp Then
+          CombI6.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombI6.ListIndex = 2   'Default: 2400
+   End If
+   
+   TxtI7.Text = ReadINI("Modem", LabI7.Tag, Text1.Text)
+   TxtI8.Text = ReadINI("Modem", LabI8.Tag, Text1.Text)
+   TxtI9.Text = ReadINI("Modem", LabI9.Tag, Text1.Text)
+   TxtI10.Text = ReadINI("Modem", LabI10.Tag, Text1.Text)
+   
+   TxtJ0.Text = ReadINI("Dialing", LabJ0.Tag, Text1.Text)
+   TxtJ1.Text = ReadINI("Dialing", LabJ1.Tag, Text1.Text)
+   
+   Blnset = False
+   strTemp = ReadINI("Modem", LabK0.Tag, Text1.Text)
+   For intLoop = 0 To CombK0.ListCount - 1
+       If CombK0.List(intLoop) = strTemp Then
+          CombK0.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombK0.ListIndex = 0 '不顯示
+   End If
+    
+   Blnset = False
+   strTemp = ReadINI("Modem", LabK0.Tag, Text1.Text)
+   For intLoop = 0 To CombK0.ListCount - 1
+       If CombK0.List(intLoop) = strTemp Then
+          CombK0.ListIndex = intLoop
+          Blnset = True
+          Exit For
+       End If
+   Next intLoop
+   If Blnset = False Then
+      CombK1.ListIndex = 0 '否
+   End If
+   Call SetINI(True)
+End If
+
+Exit Sub
+Command1_Click_ERR:
+MsgBox "顯示ini檔發生錯誤", 48
+End Sub
+Sub ClearData(Blnset As Boolean)
+    CombC3.ListIndex = -1
+    CombC0.ListIndex = -1
+    CombC1.ListIndex = -1
+    CombC2.ListIndex = -1
+    CombC5.ListIndex = -1
+    CombC7.ListIndex = -1
+    CombC8.ListIndex = -1
+    CombC6.ListIndex = -1
+    CombD0.ListIndex = -1
+    CombD2.ListIndex = -1
+    CombD1.ListIndex = -1
+    CombD11.ListIndex = -1
+    CombD12.ListIndex = -1
+    CombD7.ListIndex = -1
+    CombD8.ListIndex = -1
+    CombD3.ListIndex = -1
+    CombD4.ListIndex = -1
+    CombD5.ListIndex = -1
+    CombD6.ListIndex = -1
+    CombE0.ListIndex = -1
+    CombE1.ListIndex = -1
+    CombE2.ListIndex = -1
+    CombE3.ListIndex = -1
+    CombE4.ListIndex = -1
+    CombG0.ListIndex = -1
+    CombG1.ListIndex = -1
+    CombG2.ListIndex = -1
+    CombG3.ListIndex = -1
+    CombG4.ListIndex = -1
+    CombG5.ListIndex = -1
+    CombG6.ListIndex = -1
+    CombG7.ListIndex = -1
+    CombH0.ListIndex = -1
+    CombI0.ListIndex = -1
+    CombI6.ListIndex = -1
+    CombI5.ListIndex = -1
+    CombK0.ListIndex = -1
+    CombK1.ListIndex = -1
+    TxtI1.Text = ""
+    TxtI7.Text = ""
+    TxtJ0.Text = ""
+    TxtJ1.Text = ""
+    TxtF0.Text = ""
+    TxtF1.Text = ""
+    TxtF2.Text = ""
+    TxtF3.Text = ""
+    TxtD9.Text = ""
+    TxtD10.Text = ""
+    TxtC4.Text = ""
+    txtA0.Text = ""
+    txtA1.Text = ""
+    TxtB0.Text = ""
+    'TxtB1.Text = ""
+    'TxtB2.Text = ""
+    'TxtB3.Text = ""
+    TxtI1.Text = ""
+    TxtI2.Text = ""
+    TxtI3.Text = ""
+    TxtI4.Text = ""
+    TxtI7.Text = ""
+    TxtI8.Text = ""
+    TxtI9.Text = ""
+    TxtI10.Text = ""
+    CombC0_Link.ListIndex = -1
+    CombG0_Link.ListIndex = -1
+    CombG2_Link.ListIndex = -1
+    TxtF2_Link = ""
+    TxtF3_Link = ""
+    Text1.Text = ""
+    CombC3_Link.ListIndex = -1
+    'DefPath = ""
+    Text3.Text = ""
+    If Blnset Then
+       Option2.Value = False
+       Option2.ForeColor = &H80000012
+       Option1.Value = False
+       Option1.ForeColor = &H80000012
+    End If
+    Call SetPath(False)
+    Call SetINI(False)
+End Sub
+Sub SetDefault()
+    CombC3.ListIndex = 1 'Default: Color
+    CombC0.ListIndex = 0
+    CombC1.ListIndex = 1 'Default: 1=MMDDYY
+    CombC2.ListIndex = 1  'Default: Write to log
+    CombC5.ListIndex = 1  'Default : Always Enable
+    CombC7.ListIndex = 0 'Default: Don't inhibit
+    CombC8.ListIndex = 1 'Default: 提醒
+    CombC6.ListIndex = 0  'Default: Provileges not set
+    CombD0.ListIndex = 0 'Default: No reset
+    CombD2.ListIndex = 0  'Default: No time sync
+    CombD1.ListIndex = 1 'Default: Prompt for comment
+    CombD11.ListIndex = 0    'Default: Full Read
+    CombD12.ListIndex = 34 'Default: 35 days
+    CombD7.ListIndex = 0 ' Default: Prevent Update
+    CombD8.ListIndex = 1 'Default: 1
+    CombD3.ListIndex = 1  'Default: 1
+    CombD4.ListIndex = 0  'Default: 0
+    CombD5.ListIndex = 0  ' Default: 0
+    CombD6.ListIndex = 0 'Default: 0
+    CombE0.ListIndex = 1 ' Default: 1
+    CombE1.ListIndex = 1 ' Default: 1
+    CombE2.ListIndex = 1 ' Default: 1
+    CombE3.ListIndex = 1 ' Default: 1
+    CombE4.ListIndex = 0 ' Default: 0
+    CombG0.ListIndex = 0 ' Default: COM1
+    CombG1.ListIndex = 0 ' Default: 9600
+    CombG2.ListIndex = 1 ' Default: COM2
+    CombG3.ListIndex = 0 'Default: LPT1
+    CombG4.ListIndex = 2 '預設COM3
+    CombG5.ListIndex = 0 ' Default: 9600
+    CombG6.ListIndex = 0 '預設COM1
+    CombG7.ListIndex = 0 '只有這個速率
+    CombH0.ListIndex = 0 ' Default: Don't seal
+    CombI0.ListIndex = 2   'Default: 2400,但設定是9600
+    CombI6.ListIndex = 2   'Default: 2400
+    CombI5.ListIndex = 0  ' Default: 0
+    CombK0.ListIndex = 0 '不顯示
+    CombK1.ListIndex = 0 '否
+    TxtI1.Text = "&FX4&M0"
+    TxtI7.Text = "S0=1"
+    TxtJ1.Text = "2400"
+    TxtF0.Text = "reader.hhf"
+    TxtF1.Text = "trackfil.log"
+    'If SSTab1.Tab = 0 Then
+    '   TxtF2.Text = "C:\METRMATE\MMCOMM\PROGRAMS\"
+    '   TxtF3.Text = "C:\METRMATE\MMCOMM\READINGS\"
+    'Else
+    '   TxtF2.Text = "C:\MMATE\PROGRAMS\"
+    '   TxtF3.Text = "C:\MMATE\READINGS\"
+    'End If
+    TxtD9.Text = "00:15:00"
+    TxtD10.Text = "00:05:00"
+    TxtC4.Text = "11"
+End Sub
+
+
+Private Sub Command2_Click()
+Dim blnReturn As Boolean
+Dim intReturn As Integer
+Dim blnRun As Boolean
+Dim Rs As Recordset
+Dim strSQL As String
+Dim blnTester As Boolean
+Dim blnRunInst As Boolean
+Dim strTPCName As String
+Dim strDirectoryName As String
+Dim strPath As String
+Dim intTPC_MeterID2 As Integer
+Dim intLoop As Integer
+
+
+'---------------------------------------------------------------
+'   * 2014/08/28 Wuyo
+'   * Renamed the 554b9's dat file and create a new dat file as a pattern,
+'   * which format is following Ver.520
+'---------------------------------------------------------------
+Dim filename As String
+Dim FileNum As Integer
+Dim NoUsers(1) As Byte
+Dim NoSecCodes(1) As Byte
+Dim DatNumUser As Integer
+Dim DatNumSecCodes As Integer
+Dim SecCodes As SecurityCodes
+Dim DisplaySecurity As SecurityCodes
+Dim ErrCode As Integer
+Dim MasterSecIV(15) As Byte
+Dim ReaderSecIV(15) As Byte
+Dim CustomerSecIV(15) As Byte
+Dim Functionmap() As Byte
+Dim meterpwd() As Byte
+Dim MPWD() As Byte
+Dim dat_Functionmap() As Byte
+Dim dat_Functionmap2() As Byte
+Dim datHead(81) As Byte
+Dim datUserName(9) As Byte
+Dim datUserPwd(9) As Byte
+Dim datUserID(9) As Byte
+Dim datLevel(2) As Byte
+Dim datIDCode(1) As Byte
+Dim datTail(6) As Byte
+
+ReDim DisplaySecurity.MasterSec(19)
+ReDim DisplaySecurity.ReaderSec(19)
+ReDim DisplaySecurity.CustomerSec(19)
+
+Command2.Enabled = False
+Command4.Enabled = False
+Command6.Enabled = False
+
+DATPassword = ""
+If Option2.Value = False Then
+    DoEncrypt.Show 1
+End If
+
+' Generate a new dat
+FileNum = FreeFile
+Open App.path & "\mmcomm\Programs\S0000USC.DAT" For Binary As #FileNum
+Seek #FileNum, 116
+Get #FileNum, , NoUsers
+Get #FileNum, , NoSecCodes
+
+'---------------------------------------------
+' Read "No. Of Users" and "No. Of Security Codes"
+DatNumUser = CLng("&H" & NoUsers(1) & NoUsers(0))
+DatNumSecCodes = CLng("&H" & NoSecCodes(1) & NoSecCodes(0))
+
+'---------------------------------------------
+' Read first user's Function map from Dat file.
+ReDim Functionmap(DatNumUser - 1, 7)
+Get #FileNum, , Functionmap
+For iLoop = 0 To DatNumUser - 1
+    Seek #FileNum, 177 + 65 * iLoop
+    For jLoop = 0 To 7
+        Get #FileNum, , Functionmap(iLoop, jLoop)
+    Next
+Next
+
+ReDim dat_Functionmap(7)
+For iLoop = 0 To 7
+    dat_Functionmap(iLoop) = Functionmap(0, iLoop)
+Next
+
+' Create a second user's Function map
+ReDim dat_Functionmap2(7)
+For iLoop = 0 To DatNumUser - 1
+    Seek #FileNum, 119 + 65 + 58    'File Info Block + First UserInfo Block + Second part of UseInfo Block
+    For jLoop = 0 To 7
+        Get #FileNum, , Functionmap(iLoop, jLoop)
+    Next
+Next
+
+ReDim dat_Functionmap2(7)
+For iLoop = 0 To 7
+    dat_Functionmap2(iLoop) = Functionmap(0, iLoop)
+Next
+
+iLoop = 0
+
+'---------------------------------------------
+' read "reader meter password" and "customer meter password" from Dat file.
+ReDim meterpwd(DatNumSecCodes - 1, 143)
+Seek #FileNum, 120 + 65 * DatNumUser
+For iLoop = 0 To DatNumSecCodes - 1
+    For jLoop = 0 To 143
+        Get #FileNum, , meterpwd(iLoop, jLoop)
+    Next
+Next
+
+ReDim SecCodes.MasterSec(31)
+ReDim SecCodes.CustomerSec(31)
+ReDim SecCodes.ReaderSec(31)
+
+ReDim DisplaySecurity.MasterSec(19)
+ReDim DisplaySecurity.ReaderSec(19)
+ReDim DisplaySecurity.CustomerSec(19)
+
+For jLoop = 0 To DatNumSecCodes - 1
+    For iLoop = 0 To 15
+        MasterSecIV(iLoop) = meterpwd(jLoop, iLoop)
+        ReaderSecIV(iLoop) = meterpwd(jLoop, iLoop + 48)
+        CustomerSecIV(iLoop) = meterpwd(jLoop, iLoop + 96)
+    Next
+
+    For iLoop = 0 To 31
+        SecCodes.MasterSec(iLoop) = meterpwd(jLoop, iLoop + 16)
+        SecCodes.ReaderSec(iLoop) = meterpwd(jLoop, iLoop + 64)
+        SecCodes.CustomerSec(iLoop) = meterpwd(jLoop, iLoop + 112)
+    Next
+    
+    ' First and second parameters are equal MMPROG's login and pwd
+    Call DecryptSecurityCodes("master", MMPROGLoginPassword, SecCodes, DisplaySecurity, MasterSecIV, ReaderSecIV, CustomerSecIV, ErrCode)
+Next
+
+'---------------------------------------------
+' Prepare meter password
+ReDim dat_Reader(19)
+ReDim dat_Customer(19)
+For iLoop = 0 To 19
+    dat_Customer(iLoop) = DisplaySecurity.CustomerSec(iLoop)
+    dat_Reader(iLoop) = DisplaySecurity.ReaderSec(iLoop)
+Next
+
+datUserPwd(0) = 107
+For i = 1 To 9
+    datUserPwd(i) = 32
+Next
+
+For i = 0 To 6
+    datTail(i) = 0
+Next
+
+'---------------------------------------------
+' Get Dat file's header
+FileNum = FreeFile
+'Open App.path & "\mmcomm\Programs\S0000USC_E" For Binary As #FileNum
+Open App.path & "\mmcomm\Programs\S0000USC.DAT" For Binary As #FileNum
+Get #FileNum, , datHead
+
+Seek #FileNum, 120
+Get #FileNum, , datUserName
+
+Seek #FileNum, 162
+Get #FileNum, , datUserID
+
+Seek #FileNum, 172
+Get #FileNum, , datLevel
+
+Seek #FileNum, 174
+Get #FileNum, , datIDCode
+Close
+
+'---------------------------------------------
+' Generate a dat file as a pattern dat. In pattern dat file have two users.
+FileNum = FreeFile
+Dim tempByte(1) As Byte
+Open App.path & "\mmcomm\Programs\S0000USC520.DAT" For Binary As #FileNum
+
+' Header
+Put FileNum, , datHead
+
+' No Of Users
+tempByte(0) = 0
+tempByte(1) = 2
+Put FileNum, , tempByte(1)
+Put FileNum, , tempByte(0)
+
+' No Of Security Codes
+tempByte(0) = 0
+tempByte(1) = 1
+Put FileNum, , tempByte(1)
+Put FileNum, , tempByte(0)
+
+' First user's UserInfo Block
+Put #FileNum, , datUserName
+Put #FileNum, , datUserPwd
+Put #FileNum, , datUserID
+Put #FileNum, , datLevel
+Put #FileNum, , datIDCode
+Put #FileNum, , dat_Functionmap
+
+' Second user's UserInfo Block
+Put #FileNum, , datUserName
+Put #FileNum, , datUserPwd
+Put #FileNum, , datUserID
+Put #FileNum, , datLevel
+Put #FileNum, , datIDCode
+Put #FileNum, , dat_Functionmap2
+
+' Master Password
+ReDim MPWD(9)
+Call ConvertSecCode_Byte(cnvStringFromHexStr(cnvHexStrFromBytes(datUserPwd)), MPWD)
+Put #FileNum, , MPWD
+
+' Reader Password
+Call ConvertSecCode_Byte(cnvStringFromHexStr(cnvHexStrFromBytes(DisplaySecurity.ReaderSec)), MPWD)
+Put #FileNum, , MPWD
+
+' Customer Password
+Call ConvertSecCode_Byte(cnvStringFromHexStr(cnvHexStrFromBytes(DisplaySecurity.CustomerSec)), MPWD)
+Put #FileNum, , MPWD
+
+'Tail
+Put #FileNum, , datTail
+
+Close
+
+' =============================================
+' 2013.06.06 礙於台電DAP仍存，且MM550無法支援DAP
+' 因此決定過渡時期，僅輸出I210+c的電表程式；禁止輸出kV serials程式及MMDOS轉換功能
+' 故將blnI210_ONLY_Serials_Output = False
+' ----------------------------------------------------------------
+' 2014/09/19, Wuyo
+' 為了DAP，這邊檔案的輸出目的地有改。
+' Consult資料夾內放檔案的方式也有不同
+' =============================================
+blnI210_ONLY_Serials_Output = True
+
+strPath = TxtF2_Link.Text
+DefDrive = Left(strPath, InStr(strPath, "\"))
+strPath = Right(strPath, Len(strPath) - InStr(strPath, "\"))
+DefPath = Left(strPath, InStr(strPath, "\") - 1)
+
+DBdata.Execute ("update DataModify set txt1='" & Text2.Text & "', txt2='" & Text4.Text & "', txt3='" & Text5.Text & "'")
+'update TableNmae set FieldName=變數 where 條件值 '將TableName下的FieldName欄位所有值改成變數內容
+
+DoEvents
+'檢查資料庫資料數--------------------------------
+blnRunInst = False
+strSQL = "select * from MMtools order by UserId"
+Set Rs = DBdata.OpenRecordset(strSQL)
+If Not (Rs.BOF Or Rs.EOF) Then
+   Rs.MoveLast
+   Rs.MoveFirst
+   If Rs.RecordCount > 0 Then
+      blnRunInst = True
+   End If
+End If
+Rs.Close
+'-------------------------------------------------
+If blnRunInst Then
+If Option1.Value Or Option2.Value Then
+   If Text3.Text = "MMATE_DP" Or Text3.Text = "MMATE_PC" Or Text3.Text = "MMATE_Win" Then
+      'intReturn = MsgBox("請問要使用預設名稱 " & Text3.Text & " 作為輸出目錄名稱嗎", 52)
+      intReturn = vbYes
+      If intReturn = vbYes Then
+         blnRun = True
+      Else
+         blnRun = False
+      End If
+   Else
+      blnRun = True
+   End If
+   If blnRun = True Then
+      '檢查是否要擺上總處權限====================================
+      blnMaster = False
+      strSQL = "select * from MMtools where UserId='" & Trim(AdministratorName) & "'"
+      Set Rs = DBdata.OpenRecordset(strSQL)
+      If Not (Rs.BOF Or Rs.EOF) Then
+         Rs.MoveLast
+         Rs.MoveFirst
+         If Rs.RecordCount > 0 Then
+            blnMaster = True
+         End If
+      End If
+      Rs.Close
+   
+      '檢查是否要擺上電表廠的密碼====================================
+      blnFactory = False
+      strSQL = "select * from MMtools where UserId='" & Trim(FactoryName) & "'"
+      Set Rs = DBdata.OpenRecordset(strSQL)
+      If Not (Rs.BOF Or Rs.EOF) Then
+         Rs.MoveLast
+         Rs.MoveFirst
+         If Rs.RecordCount > 0 Then
+            blnFactory = True
+            
+            For intLoop = 0 To 9
+                byteFactoryPWD(intLoop) = &H20
+            Next
+            For intLoop = 0 To 9
+                byteFactoryPWD(intLoop) = "&h" & Mid(Rs.Fields(3), intLoop * 2 + 1, 2)
+            Next
+         End If
+      End If
+      Rs.Close
+      
+      '檢查是否要擺上系統的密碼====================================
+      blnSystem = False
+      strSQL = "select * from MMtools where UserId='" & Trim(SystemName) & "'"
+      Set Rs = DBdata.OpenRecordset(strSQL)
+      If Not (Rs.BOF Or Rs.EOF) Then
+         Rs.MoveLast
+         Rs.MoveFirst
+         If Rs.RecordCount > 0 Then
+            blnSystem = True
+            
+            For intLoop = 0 To 9
+                byteSystemPWD(intLoop) = &H20
+            Next
+            For intLoop = 0 To 9
+                byteSystemPWD(intLoop) = "&h" & Mid(Rs.Fields(3), intLoop * 2 + 1, 2)
+            Next
+         End If
+      End If
+      Rs.Close
+      
+
+      If Option2.Value Then '輸出MMATE版本
+         If Dir(App.path & "\DOSHH", vbDirectory) <> "" Then
+            If Dir(App.path & "\WIN\Setup", vbDirectory) <> "" Then
+               Call ShowNowRun(True, 0)
+               '--------------------------------------------------------
+               strSQL = "select * from MMtools order by UserId"
+               Set Rs = DBdata.OpenRecordset(strSQL)
+               Do While Not (Rs.BOF Or Rs.EOF)
+                  strDirectoryName = GetDirectoryName(Rs.Fields(0), Rs.Fields(1))
+                  intTPC_MeterID2 = Rs.Fields(6)
+                  '------------清除即有的程式目錄--------------------------------
+                  Label6.Caption = "正在刪除舊有的程式 (" & strDirectoryName & "\" & Text3.Text & ") 資料夾"
+                  Call DeleteBat
+                  pId = Shell(App.path & "\Deltre2.bat " & App.path & "\Program\" & strDirectoryName & "\" & Text3.Text) ' Shell 傳回 Process Id
+                  'Debug.Print App.path & "\Deltre2.bat " & App.path & "\Program\" & strDirectoryName & "\" & Text3.Text
+                  pHnd = OpenProcess(SYNCHRONIZE, 0, pId) ' 取得 Process Handle
+                  If pHnd <> 0 Then
+                     Call WaitForSingleObject(pHnd, INFINITE) ' 無限等待，直到程式結束
+                     Call CloseHandle(pHnd)
+                  End If
+                  '---------------------------------------------------------------
+                  
+                  blnReturn = WriteINI("Dos", Rs.Fields(0), Rs.Fields(1))
+                  Label6.Caption = "正在進行複製相關資料至" & strDirectoryName & "\" & Text3.Text & "目錄下.."
+                  If InputSystemData(CombC0_Link.Text, Rs.Fields(0), Rs.Fields(1)) Then '寫入ini檔
+                     Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "目錄DAT檔資料修改.."
+                     If Rs.Fields(4) = True Then
+                        blnTester = True
+                     Else
+                        blnTester = False
+                     End If
+
+                     Call OutputSec(Rs.Fields(0), Rs.Fields(1), Rs.Fields(2), Rs.Fields(3), blnTester, Rs.Fields(5))
+                     Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "目錄DAT檔資料完成"
+                   
+                     If blnI210_ONLY_Serials_Output Then
+                        'Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2c目錄PRO檔資料修改.."
+                        '新版MM5.32已不用再修改，原先5.32前要修改的PRO放置在KV2X目錄裡
+                        'Call ModifyPro(strDirectoryName) '修改輸出為DOS版本的kV2c.PRO(刪除FW 4.0 MT68)
+                        'Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2c目錄PRO檔資料完成"
+                     
+                        Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "\Programs\kV目錄PRO檔資料修改.."
+                        Call ModifyProTimeBase("kV", strDirectoryName, Rs.Fields(7), False)
+                        Call ModifyProMeterID2("kV", strDirectoryName, intTPC_MeterID2, False)
+                        Call ModifyProEventlog("kV", strDirectoryName, False)
+                        Call ModifyProVoltEventlog("kV", strDirectoryName, False)
+                        Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "\Programs\kV目錄PRO檔資料完成"
+                     
+                        Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2目錄PRO檔資料修改.."
+                        Call ModifyProTimeBase("kV2", strDirectoryName, Rs.Fields(7), False)
+                        Call ModifyProMeterID2("kV2", strDirectoryName, intTPC_MeterID2, False)
+                        Call ModifyProEventlog("kV2", strDirectoryName, False)
+                        Call ModifyProVoltEventlog("kV2", strDirectoryName, False)
+                        Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2目錄PRO檔資料完成"
+
+                        Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "\Programs目錄PRO程式檔修改.."
+                        Call Modify_Pro("program\" & strDirectoryName & "\" & Text3.Text) '修改IUSA
+                        Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "\Programs目錄PRO程式檔完成"
+                     End If
+                     
+                     Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2c目錄PRO檔資料修改.."
+                     Call ModifyProTimeBase("kV2C", strDirectoryName, Rs.Fields(7), False)
+                     Call ModifyProMeterID2("kV2C", strDirectoryName, intTPC_MeterID2, False)
+                     Call ModifyProEventlog("kV2C", strDirectoryName, False)
+                     Call ModifyProVoltEventlog("kV2C", strDirectoryName, False)
+                     Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2c目錄PRO檔資料完成"
+                    
+                  Else
+                     MsgBox "資料匯出失敗", 48
+                  End If
+                  Call ShowNowRun(True, 1)
+                  Rs.MoveNext
+               Loop
+               Call ShowNowRun(False, 0)
+               Rs.Close
+               Kill (App.path & "\Deltre2.bat")
+               '--------------------------------------------------------
+            Else
+               MsgBox "資料匯出失敗(相依目錄\WIN\Setup不存在),請確認程式存放路徑是否正確", 48
+            End If
+         Else
+            MsgBox "資料匯出失敗(相依目錄DOSHH不存在),請確認程式存放路徑是否正確", 48
+         End If
+      End If
+      
+      '當選擇的是 "Metrmate視窗版 ( MMCOMM )" 時
+      If Option1.Value Then
+         If Dir(App.path & "\MMCOMM", vbDirectory) <> "" Then
+            If Dir(App.path & "\consult", vbDirectory) <> "" Then
+               If Dir(App.path & "\WIN", vbDirectory) <> "" Then
+                  '--------------------------------------------------------
+                  Call ShowNowRun(True, 0)
+                   strSQL = "select * from MMtools order by UserId"
+                   Set Rs = DBdata.OpenRecordset(strSQL)
+                   Do While Not (Rs.BOF Or Rs.EOF)
+                      strDirectoryName = GetDirectoryName(Rs.Fields(0), Rs.Fields(1))
+                      intTPC_MeterID2 = Rs.Fields(6)
+                      '------------清除即有的程式目錄--------------------------------
+                      Label6.Caption = "正在刪除舊有的程式 (" & strDirectoryName & "\" & Text3.Text & ") 資料夾"
+                      Call DeleteBat
+                      pId = Shell(App.path & "\Deltre2.bat " & App.path & "\Program\" & strDirectoryName & "\" & Text3.Text) ' Shell 傳回 Process Id
+                      'Debug.Print App.path & "\Deltre2.bat " & App.path & "\Program\" & Rs.Fields(0) & "\" & Text3.Text
+                      pHnd = OpenProcess(SYNCHRONIZE, 0, pId) ' 取得 Process Handle
+                      If pHnd <> 0 Then
+                         Call WaitForSingleObject(pHnd, INFINITE) ' 無限等待，直到程式結束
+                         Call CloseHandle(pHnd)
+                      End If
+                      '---------------------------------------------------------------
+                   
+                      blnReturn = WriteINI("Windows", Rs.Fields(0), Rs.Fields(1))
+                      Label6.Caption = "正在複製相關資料至" & strDirectoryName & "\" & Text3.Text & "目錄下.."
+                      If InputSystemData(CombC0_Link.Text, Rs.Fields(0), Rs.Fields(1)) Then
+                         Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "目錄DAT檔資料修改.."
+                         If Rs.Fields(4) = True Then
+                            blnTester = True
+                         Else
+                            blnTester = False
+                         End If
+                         Call OutputSec(Rs.Fields(0), Rs.Fields(1), Rs.Fields(2), Rs.Fields(3), blnTester, Rs.Fields(5))
+                         Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "目錄DAT檔資料完成.."
+                         
+                         If blnI210_ONLY_Serials_Output Then
+                            Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "\Programs\kV目錄PRO檔資料修改.."
+                            Call ModifyProTimeBase("kV", strDirectoryName, Rs.Fields(7), True)
+                            Call ModifyProMeterID2("kV", strDirectoryName, intTPC_MeterID2, True)
+                            Call ModifyProEventlog("kV", strDirectoryName, True)
+                            Call ModifyProVoltEventlog("kV", strDirectoryName, True)
+                            Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "\Programs\kV目錄PRO檔資料完成"
+                         
+                            Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2目錄PRO檔資料修改.."
+                            Call ModifyProTimeBase("kV2", strDirectoryName, Rs.Fields(7), True)
+                            Call ModifyProMeterID2("kV2", strDirectoryName, intTPC_MeterID2, True)
+                            Call ModifyProEventlog("kV2", strDirectoryName, True)
+                            Call ModifyProVoltEventlog("kV2", strDirectoryName, True)
+                            Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2目錄PRO檔資料完成"
+                         
+                            Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2c目錄PRO檔資料修改.."
+                            Call ModifyProTimeBase("kV2C", strDirectoryName, Rs.Fields(7), True)
+                            Call ModifyProMeterID2("kV2C", strDirectoryName, intTPC_MeterID2, True)
+                            Call ModifyProEventlog("kV2C", strDirectoryName, True)
+                            Call ModifyProVoltEventlog("kV2C", strDirectoryName, True)
+                            Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2c目錄PRO檔資料完成"
+                         
+                            Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2cX目錄PRO檔資料修改.."
+                            Call ModifyProTimeBase("kV2CX", strDirectoryName, Rs.Fields(7), True)
+                            Call ModifyProMeterID2("kV2CX", strDirectoryName, intTPC_MeterID2, True)
+                            Call ModifyProEventlog("kV2CX", strDirectoryName, True)
+                            Call ModifyProVoltEventlog("kV2CX", strDirectoryName, True)
+                            Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "\Programs\kV2cX目錄PRO檔資料完成"
+                         End If
+                         
+                         '==================================================================================================
+                         Label6.Caption = "正在進行" & strDirectoryName & "\" & Text3.Text & "\Programs\I210目錄PRO檔資料修改.."
+                         'MsgBox "strDirectoryName: " + strDirectoryName + ". intTPC_MeterID2: " + Str(intTPC_MeterID2)
+                         Call ModifyProMeterID2("I210", strDirectoryName, intTPC_MeterID2, True)
+                         Call ModifyProTimeBase("I210", strDirectoryName, Rs.Fields(7), True)
+                         Label6.Caption = "修改" & strDirectoryName & "\" & Text3.Text & "\Programs\I210目錄PRO檔資料完成"
+                         '==================================================================================================
+                         
+                         Call ShowNowRun(True, 1)
+                      Else
+                         MsgBox Rs.Fields(0) & " " & Text3.Text & " 資料匯出失敗", 48
+                      End If
+                      Rs.MoveNext
+                    Loop
+                    Rs.Close
+                    Call ShowNowRun(False, 0)
+                    Kill (App.path & "\Deltre2.bat")
+               Else
+                  MsgBox "資料匯出失敗(相依目錄\WIN不存在),請確認程式存放路徑是否正確", 48, "無法執行"
+               End If
+            Else
+               MsgBox "資料匯出失敗(相依目錄Consult不存在),請確認程式存放路徑是否正確", 48, "無法執行"
+            End If
+         Else
+            MsgBox "資料匯出失敗(相依目錄MMCOMM不存在),請確認程式存放路徑是否正確", 48, "無法執行"
+         End If
+      End If
+   End If
+End If
+Else
+    MsgBox "資料庫尚未建立資料，無法進行程式匯出作業", 48, "無法執行"
+End If
+
+
+If Option2.Value = False Then
+
+     If intDoEncrypted = 1 Then
+        '---------------------------------------------------------------
+        ' Beginning to search .dat file
+        Label6.Caption = "開始對Dat檔案加密"
+        Call FindFiles(App.path & "\Program\", "S0000USC520.DAT", 0, 0, "Encrypt")
+        '---------------------------------------------------------------
+        Label6.Caption = "Dat檔案加密完成"
+        
+        Call FindFiles(App.path & "\Program\", "S0000USC520.DAT", 0, 0, "Kill")
+        Call FindFiles(App.path & "\Program\", "S0000USC.DAT", 0, 0, "Kill")
+        Call FindFiles(App.path & "\Program\", "S0000USC.CHK", 0, 0, "Kill")
+        
+        ' Rename
+        Call FindFiles(App.path & "\Program\", "S0000USC520.DAT(Encrypt)", 0, 0, "Rename")
+       
+       '20140929
+       ' 為了DAP要產生一個檔案，該檔案需要和DAP的安裝程式放在一起
+       ' 路徑為區處下的 "MMCOMM_FOR_PC\Disk1_Win7\" 內
+       Call FindFiles(App.path & "\Program\", "setup.exe", 0, 0, "Add")
+       
+        MsgBox "資料匯出且加密完成", 64, "進度完成"
+     Else
+        Label6.Visible = True
+        Label6.Enabled = True
+        Label6.Caption = "不對Dat檔案加密"
+        MsgBox "不加密資料匯出完成", 64, "進度完成"
+     End If
+End If
+
+Command2.Enabled = True
+Command4.Enabled = True
+Command6.Enabled = True
+ 
+End Sub
+
+Private Sub Command3_Click()
+DBdata.Close
+
+End
+End Sub
+
+Public Sub Command4_Click()
+Call ClearData(True)
+End Sub
+
+Private Sub Command6_Click()
+
+Form1.Hide
+Form3.Show
+Form2.SSTab1.Tab = 1
+Form2.SSTab1.Tab = 0
+Form2.Show
+
+End Sub
+
+Private Sub Form_Activate()
+
+'If CombC0_Link.ListIndex < 1 Then
+If TxtF2_Link.Text = "" Then
+    Option1_Click
+End If
+
+End Sub
+
+Private Sub Form_Load()
+Dim intLoop As Integer
+Dim Rs As Recordset
+Dim strSQL As String
+
+'     1 = Laptop or desktop
+'   101 = DAP PC9000
+'   108 = DAP PC9500/9800
+'   102 = HP200LX Palmtop
+'   103 = MicroPalm PC3000A (8 x 20 screen)
+'   104 = MicroPalm PC3000B (10 x 20 screen)
+'   105 = MicroPalm PC3040V (1/2 wide PC screen)
+'Text3.Text = App.Path
+
+' Modified by Wuyo 2014/08/05
+CombC0.AddItem "Laptop or Desktop"
+CombC0.AddItem "Laptop or Desktop Win7"
+CombC0.AddItem "DAP PC 9000 Handheld"
+CombC0.AddItem "DAP PC 9500/9800 Handheld"
+CombC0.AddItem "Hewlett Packard 200LX Palmtop"
+CombC0.AddItem "Micro Palm PC/3000 (8x20) Handheld"
+CombC0.AddItem "Micro Palm PC/3000 (10x20) Handheld"
+CombC0.AddItem "Micro Palm PC/3040v Handheld"
+
+'0=Black & White, 1=Color
+CombC3.AddItem "黑白", 0
+CombC3.AddItem "彩色", 1
+'CombC3.ListIndex = 1 'Default: Color
+
+'0=DDMMYY, 1=MMDDYY, 2=YYMMDD
+CombC1.AddItem "DDMMYY", 0
+CombC1.AddItem "MMDDYY", 1
+CombC1.AddItem "YYMMDD", 2
+'CombC1.ListIndex = 1 'Default: 1=MMDDYY
+
+'0=No log, 1=Write to log
+CombC2.AddItem "否", 0
+CombC2.AddItem "是", 1
+'CombC2.ListIndex = 1  'Default: Write to log
+
+'0=Never Enable, 1=Always Enable, 2=Prompt Operator
+CombC5.AddItem "關閉", 0
+CombC5.AddItem "開啟", 1
+CombC5.AddItem "訊息提示", 2
+'CombC5.ListIndex = 1  'Default : Always Enable
+
+'0=Don't inhibit, 1=Inhibit manual demand reset.
+CombC7.AddItem "否", 0
+CombC7.AddItem "是", 1
+'CombC7.ListIndex = 0 'Default: Don't inhibit
+
+'0=不提醒, 1=提醒
+CombC8.AddItem "否", 0
+CombC8.AddItem "是", 1
+'CombC8.ListIndex = 1 'Default: 提醒
+
+'0=Provileges not set, 1=set Privileges.
+CombC6.AddItem "否", 0
+CombC6.AddItem "是", 1
+'CombC7.ListIndex = 0  'Default: Provileges not set
+
+'Reset after read: 0=No reset, 1=Reset
+CombD0.AddItem "否", 0
+CombD0.AddItem "是", 1
+'Combo_AutoReset.ListIndex = 0 'Default: No reset
+
+'Time sync after read: 0=No time sync, 1=Time sync
+CombD2.AddItem "否", 0
+CombD2.AddItem "是", 1
+'CombD2.ListIndex = 0  'Default: No time sync
+
+'0=No prompt, 1=Prompt for comment
+CombD1.AddItem "否", 0
+CombD1.AddItem "是", 1
+'CombD1.ListIndex = 1 'Default: Prompt for comment
+
+'0=Full Read, 1=Read New Data, 2=Read X Days
+CombD11.AddItem "全部讀取", 0
+CombD11.AddItem "讀取新值", 1
+CombD11.AddItem "讀取X天", 2
+'CombD11.ListIndex = 0    'Default: Full Read
+
+For intLoop = 1 To 365
+    CombD12.AddItem Str(intLoop) & "天", intLoop - 1
+Next intLoop
+'CombD12.ListIndex = 34 'Default: 35 days
+
+' 1=Update, 0=Prevent Update
+CombD7.AddItem "否", 0
+CombD7.AddItem "是", 1
+'CombD7.ListIndex = 0 ' Default: Prevent Update
+
+'0=Don't increment, 1=Increment
+CombD8.AddItem "否", 0
+CombD8.AddItem "是", 1
+'CombD8.ListIndex = 1 'Default: 1
+
+' 0=Don't read, 1=Read
+CombD3.AddItem "否", 0
+CombD3.AddItem "是", 1
+'CombD3.ListIndex = 1  'Default: 1
+
+'0=Don't read, 1=Read
+CombD4.AddItem "否", 0
+CombD4.AddItem "是", 1
+'CombD4.ListIndex = 0  'Default: 0
+
+' 0=Don't read, 1=Read
+CombD5.AddItem "否", 0
+CombD5.AddItem "是", 1
+'CombD5.ListIndex = 0  ' Default: 0
+
+'0=Don't read, 1=Read
+CombD6.AddItem "否", 0
+CombD6.AddItem "是", 1
+'CombD6.ListIndex = 0 'Default: 0
+
+' 0=Don't hangup, 1=Hangup
+CombE0.AddItem "否", 0
+CombE0.AddItem "是", 1
+'CombE0.ListIndex = 1 ' Default: 1
+
+' 0=Don't reset, 1=Reset
+CombE1.AddItem "否", 0
+CombE1.AddItem "是", 1
+'CombE1.ListIndex = 1 ' Default: 1
+
+' 0=Don't reset, 1=Reset
+CombE2.AddItem "否", 0
+CombE2.AddItem "是", 1
+'CombE2.ListIndex = 1 ' Default: 1
+
+' 0=Don't reset, 1=Reset
+CombE3.AddItem "否", 0
+CombE3.AddItem "是", 1
+'CombE3.ListIndex = 1 ' Default: 1
+
+' 0=Don't Program, 1=Program
+CombE4.AddItem "否", 0
+CombE4.AddItem "是", 1
+'CombE4.ListIndex = 0 ' Default: 0
+
+ For intLoop = 1 To 255
+    CombG0.AddItem "COM" & intLoop, intLoop - 1
+Next intLoop
+'CombG0.ListIndex = 0 ' Default: COM1
+
+' rate: 9600, 14400, 19200, 28800, 57600
+CombG1.AddItem "9600", 0
+CombG1.AddItem "14400", 1
+CombG1.AddItem "19200", 2
+CombG1.AddItem "28800", 3
+CombG1.AddItem "57600", 4
+'CombG1.ListIndex = 0 ' Default: 9600
+
+For intLoop = 1 To 255
+   CombG2.AddItem "COM" & intLoop, intLoop - 1
+Next intLoop
+'CombG2.ListIndex = 1 ' Default: COM2
+
+CombG3.AddItem "LPT1", 0
+CombG3.AddItem "LPT2", 1
+CombG3.AddItem "LPT3", 2
+CombG3.AddItem "LPT4", 3
+'CombG3.ListIndex = 0 'Default: LPT1
+
+CombG5.AddItem "9600", 0
+CombG5.AddItem "14400", 1
+CombG5.AddItem "19200", 2
+CombG5.AddItem "28800", 3
+CombG5.AddItem "57600", 4
+'CombG5.ListIndex = 0 ' Default: 9600
+
+For intLoop = 1 To 255
+   CombG4.AddItem "COM" & intLoop, intLoop - 1
+Next intLoop
+'CombG4.ListIndex = 2 '預設COM3
+
+For intLoop = 1 To 255
+   CombG6.AddItem "COM" & intLoop, intLoop - 1
+Next intLoop
+'CombG6.ListIndex = 0 '預設COM1
+
+CombG7.AddItem "9600", 0 '只有這個速率
+
+' 0=Don't seal, 1=Seal
+CombH0.AddItem "否", 0
+CombH0.AddItem "是", 1
+'CombH0.ListIndex = 0 ' Default: Don't seal
+
+'撥號速率
+CombI0.AddItem "300", 0
+CombI0.AddItem "1200", 1
+CombI0.AddItem "2400", 2
+CombI0.AddItem "4800", 3
+CombI0.AddItem "9600", 4
+'CombI0.ListIndex = 2   'Default: 2400,但設定是9600
+
+'回應速率
+CombI6.AddItem "300", 0
+CombI6.AddItem "1200", 1
+CombI6.AddItem "2400", 2
+CombI6.AddItem "4800", 3
+CombI6.AddItem "9600", 4
+'CombI6.ListIndex = 2   'Default: 2400
+
+' 0=don't fix, 1=fix at 9600
+CombI5.AddItem "否", 0
+CombI5.AddItem "是", 1
+'CombI5.ListIndex = 0  ' Default: 0
+
+'0=Don't display soft switches while programming
+'1=display soft switches while programming
+CombK0.AddItem "否", 0
+CombK0.AddItem "是", 1
+
+' 0=Don't upgrade soft switches display while upgrading or downgrading,
+' 1=upgrade soft switches display while upgrading or downgrading
+CombK1.AddItem "否", 0
+CombK1.AddItem "是", 1
+
+'; Read meter and save it with Meter Id as file name
+'; 0 = Save Meter reading with the name provided in HHFFileName
+'; 1 = Save Meter reading with MeterId as file name
+'; Default: 0
+Check1.Value = 0
+
+
+Call DataLink
+Call SetPath(False)
+Call SetINI(False)
+
+strSQL = "select * from DataModify"
+Set Rs = DBdata.OpenRecordset(strSQL)
+
+Text2.Text = Rs.Fields(0)
+Text4.Text = Rs.Fields(1)
+Text5.Text = Rs.Fields(2)
+TxtB1.Text = Rs.Fields(0)
+TxtB2.Text = Rs.Fields(1)
+TxtB3.Text = Rs.Fields(2)
+Rs.Close
+
+'Wuyo 20140926
+' 為了投高壓MIU的標案，所以DOS的部分先不給用
+Option2.Enabled = False
+Option2.Visible = False
+CombC3_Link.Visible = False
+
+End Sub
+
+
+
+Private Sub Label26_Click()
+Label00.Caption = "max time differences for auto time sync. (Default: Max=00:15:00)"
+End Sub
+
+Private Sub Label27_Click()
+Label00.Caption = "Min time differences for auto time sync. (Default: Min=00:05:00)"
+End Sub
+
+Private Sub Label28_Click()
+Label00.Caption = "CommentPresent: Prompt for comment before reading meter."
+End Sub
+
+Private Sub Label29_Click()
+Label00 = "AutoTimeSync: Time sync after read."
+End Sub
+
+Function Open_FileA(ByVal strPath As String) As String 'CommonDialog1
+Dim File_Path As String
+ CommonDialogA.DialogTitle = "開啟檔案"
+ CommonDialogA.Filter = "系統設定檔(*.INI)|*.INI"
+ 'CommonDialogA.FileName = "mmdos.ini"
+ CommonDialogA.InitDir = strPath
+ CommonDialogA.ShowOpen
+ If Len(CommonDialogA.filename) <> 0 Then
+    File_Path = CommonDialogA.filename
+ End If
+ If Dir(File_Path) = vbNullString Then
+    File_Path = ""
+ End If
+ Open_FileA = File_Path
+End Function
+Function Open_FileB(ByVal strPath As String) As String 'CommonDialog1
+Dim File_Path As String
+ CommonDialogB.DialogTitle = "開啟檔案"
+ CommonDialogB.Filter = "系統設定檔(*.INI)|*.INI"
+ 'CommonDialogB.FileName = "mmdos.ini"
+ CommonDialogB.InitDir = strPath
+ CommonDialogB.ShowSave
+ If Len(CommonDialogB.filename) <> 0 Then
+    File_Path = CommonDialogB.filename
+ End If
+ If Dir(File_Path) = vbNullString Then
+    File_Path = ""
+ End If
+ Open_FileB = File_Path
+End Function
+Function ReadINI(str1 As String, str2 As String, strINIPath As String) As String
+Dim strPath As String
+Dim StrPathTmp As String
+Dim num As Integer
+On Error GoTo ReadINI_Err
+    strPath = String(255, Chr(0))
+    StrPathTmp = ""
+    Call GetPrivateProfileString(str1, str2, "", strPath, 256, strINIPath)
+    For num = 1 To Len(strPath)
+        If Mid(strPath, num, 1) <> Chr(0) Then
+           StrPathTmp = StrPathTmp & Mid(strPath, num, 1)
+        End If
+    Next
+    ReadINI = StrPathTmp
+    'PathFile = Trim(StrPath)
+Exit Function
+ReadINI_Err:
+MsgBox "讀取ini檔發生錯誤", 48
+End Function
+
+' 2009-06-19修改，因應0.5級規範，資料輸出都要以TPCXXX為目錄名稱
+' 2009-08-26修改，因應0.5級規範，資料輸出都要以TPCXXX+區處名稱為目錄名稱
+Function GetDirectoryName(strPathName As String, strTPCName As String) As String
+    'Dim intIndex As Integer
+    'Dim strReturn As String
+    'intIndex = 1000
+    'intIndex = StringComp(intIndex, InStr(strTPCName, "0"))
+    'intIndex = StringComp(intIndex, InStr(strTPCName, "1"))
+    'intIndex = StringComp(intIndex, InStr(strTPCName, "2"))
+    'intIndex = StringComp(intIndex, InStr(strTPCName, "3"))
+    'intIndex = StringComp(intIndex, InStr(strTPCName, "4"))
+    'intIndex = StringComp(intIndex, InStr(strTPCName, "5"))
+    'intIndex = StringComp(intIndex, InStr(strTPCName, "6"))
+    'intIndex = StringComp(intIndex, InStr(strTPCName, "7"))
+    'intIndex = StringComp(intIndex, InStr(strTPCName, "8"))
+    'intIndex = StringComp(intIndex, InStr(strTPCName, "9"))
+    'If (intIndex = 1000) Then
+    '   strReturn = strPathName
+    'Else
+    '   strReturn = Right(strTPCName, Len(strTPCName) - (intIndex - 1)) & strPathName
+    'End If
+    GetDirectoryName = strTPCName + strPathName
+End Function
+Function StringComp(intIndex As Integer, intIndexTemp As Integer) As Integer
+If intIndexTemp <> 0 Then
+    If (intIndex > intIndexTemp) Then
+        intIndex = intIndexTemp
+    End If
+End If
+StringComp = intIndex
+End Function
+
+Function WriteINI(strOs As String, strPathName As String, strTPCName As String) As Boolean
+Dim intININame As Integer
+Dim strOutput As String
+Dim strTemp As String
+Dim strChange As String
+strChange = "%TPC"
+'On Error GoTo WriteINI_ERROR
+intININame = FreeFile
+strPathName = GetDirectoryName(strPathName, strTPCName)
+'目錄製作------------------------------------------------------------------------------
+
+'第一層目錄名稱PROGRAM
+If Dir(App.path & "\Program", vbDirectory) = vbNullString Then
+   MkDir (App.path & "\Program")
+End If
+
+'第二層目錄名稱區處名稱
+If Dir(App.path & "\Program\" & strPathName, vbDirectory) = vbNullString Then
+   MkDir (App.path & "\Program\" & strPathName)
+End If
+
+'第三層目錄(MMATE_PC / MMATE_DP)
+If Dir(App.path & "\Program\" & strPathName & "\" & Text3.Text, vbDirectory) = vbNullString Then
+   MkDir (App.path & "\Program\" & strPathName & "\" & Text3.Text)
+End If
+
+'-------------------------------------------------------------------------------------
+'開啟製作的ini檔
+If strOs = "Windows" Then
+   If Dir(App.path & "\Program\" & strPathName & "\" & Text3.Text & "\MMCOMM", vbDirectory) = vbNullString Then
+      MkDir (App.path & "\Program\" & strPathName & "\" & Text3.Text & "\MMCOMM")
+   End If
+   Label6.Caption = "正在進行寫入MMCOMM.INI檔資料.."
+   Open App.path & "\Program\" & strPathName & "\" & Text3.Text & "\MMCOMM\MMCOMM.INI" For Output As intININame
+ElseIf strOs = "Dos" Then
+   Label6.Caption = "正在進行寫入MMDOS.INI檔資料.."
+   Open App.path & "\Program\" & strPathName & "\" & Text3.Text & "\MMDOS.INI" For Output As intININame
+End If
+'-------------------------------------------------------------------------------------
+
+Print #intININame, ";==============================================================================="
+Print #intININame, "; MeterMate (TM) Reading & Programming Software                                "
+Print #intININame, "; Copyright (C) 2012 GE All Rights Reserved                                    "
+Print #intININame, ";                                                                              "
+Print #intININame, "; MMCOMM Software INI file.  This file is grouped by sections starting with a  "
+Print #intININame, "; group identifier in brackets " & "[Group]" & ". A group ends with the start of the  "
+Print #intININame, "; next group, or end of file.  Within a group there may exist comments,        "
+Print #intININame, "; starting with "; ", or tokens of the form "; token = Value; ".  Any value may be       "
+Print #intININame, "; assigned to a token up to the end of the line.  Leading and trailing spaces  "
+Print #intININame, "; will be stripped from all tokens unless enclosed in optional single quote    "
+Print #intININame, "; characters " & "''" & ".                                                            "
+Print #intININame, ";                                                                              "
+If LCase(strOs) = "windows" Then
+   Print #intININame, "; File name: MMCOMM.INI                                                        "
+Else
+   Print #intININame, "; File name: MMDOS.INI                                                        "
+End If
+Print #intININame, ";==============================================================================="
+Print #intININame, ""
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section defines the version, copyright and legal information.  This"
+Print #intININame, "; information is not editable."
+Print #intININame, ""
+Print #intININame, "[Copyright]"
+Print #intININame, ""
+Print #intININame, LabA0.Tag & " = " & txtA0.Text
+Print #intININame, LabA1.Tag & " = '" & txtA1.Text & "'"
+Print #intININame, ""
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section defines general customer information.  This information is"
+Print #intININame, "; generally only editable by the SETUP program."
+Print #intININame, ""
+Print #intININame, "[Customer]"
+Print #intININame, ""
+Print #intININame, "; Customer Id from 0000..9999"
+Print #intININame, "; Default: 0"
+Print #intININame, LabB0.Tag & "=" & TxtB0.Text
+Print #intININame, ""
+Print #intININame, "; Three customer header lines (1..30 chars each)"
+Print #intININame, "; Default: Null strings"
+
+
+
+If Len(TxtB1.Text) > 0 Then
+   If InStr(TxtB1.Text, strChange) > 0 Then
+        strTemp = TxtB1.Text
+        strOutput = ""
+        Do While (InStr(strTemp, strChange) > 0)
+            strOutput = strOutput & Left(strTemp, InStr(strTemp, strChange) - 1)
+            If (InStr(strTemp, strChange) + Len(strChange)) < Len(strTemp) Then
+                strTemp = Right(strTemp, Len(strTemp) - (InStr(strTemp, strChange) + Len(strChange) - 1))
+                strOutput = strOutput & strTPCName
+            Else
+                strOutput = strOutput & strTPCName
+                Exit Do
+            End If
+            If InStr(strTemp, strChange) = 0 Then
+                strOutput = strOutput & strTemp
+                Exit Do
+            End If
+        Loop
+   Else
+      strOutput = TxtB1.Text
+   End If
+   Print #intININame, LabB1.Tag & "='" & strOutput & "'"
+Else
+   Print #intININame, LabB1.Tag & "=''"
+End If
+
+If Len(TxtB2.Text) > 0 Then
+   If InStr(TxtB2.Text, strChange) > 0 Then
+        strTemp = TxtB2.Text
+        strOutput = ""
+        Do While (InStr(strTemp, strChange) > 0)
+            strOutput = strOutput & Left(strTemp, InStr(strTemp, strChange) - 1)
+            If (InStr(strTemp, strChange) + Len(strChange)) < Len(strTemp) Then
+                strTemp = Right(strTemp, Len(strTemp) - (InStr(strTemp, strChange) + Len(strChange) - 1))
+                strOutput = strOutput & strTPCName
+            Else
+                strOutput = strOutput & strTPCName
+                Exit Do
+            End If
+            If InStr(strTemp, strChange) = 0 Then
+                strOutput = strOutput & strTemp
+                Exit Do
+            End If
+        Loop
+   Else
+      strOutput = TxtB2.Text
+   End If
+   Print #intININame, LabB2.Tag & "='" & strOutput & "'"
+Else
+   Print #intININame, LabB2.Tag & "=''"
+End If
+
+If Len(TxtB3.Text) > 0 Then
+   If InStr(TxtB3.Text, strChange) > 0 Then
+        strTemp = TxtB3.Text
+        strOutput = ""
+        Do While (InStr(strTemp, strChange) > 0)
+            strOutput = strOutput & Left(strTemp, InStr(strTemp, strChange) - 1)
+            If (InStr(strTemp, strChange) + Len(strChange)) < Len(strTemp) Then
+                strTemp = Right(strTemp, Len(strTemp) - (InStr(strTemp, strChange) + Len(strChange) - 1))
+                strOutput = strOutput & strTPCName
+            Else
+                strOutput = strOutput & strTPCName
+                Exit Do
+            End If
+            If InStr(strTemp, strChange) = 0 Then
+                strOutput = strOutput & strTemp
+                Exit Do
+            End If
+        Loop
+   Else
+      strOutput = TxtB3.Text
+   End If
+   Print #intININame, LabB3.Tag & "='" & strOutput & "'"
+Else
+   Print #intININame, LabB3.Tag & "=''"
+End If
+Print #intININame, ""
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section defines system operating parameters.  It is directly editable"
+Print #intININame, "; by the Configure/System menu option in the MMCOMM software.  Some options are"
+Print #intININame, "; also edited by the SETUP program."
+Print #intININame, ""
+Print #intININame, "[System]"
+Print #intININame, ""
+Print #intININame, "; Display type: 0=Black & White, 1=Color"
+Print #intININame, "; Default: Color"
+Print #intININame, LabC3.Tag & "=" & CombC3.Tag
+
+Print #intININame, ""
+Print #intININame, "; Screen mode: Used by Phasor graphics function"
+Print #intININame, LabC4.Tag & "=" & TxtC4.Text
+
+Print #intININame, ""
+Print #intININame, "; Interface type:"
+Print #intININame, ";     1 = Laptop or desktop"
+Print #intININame, ";   101 = DAP PC9000"
+Print #intININame, ";   108 = DAP PC9500/9800"
+Print #intININame, ";   102 = HP200LX Palmtop"
+Print #intININame, ";   103 = MicroPalm PC3000A (8 x 20 screen)"
+Print #intININame, ";   104 = MicroPalm PC3000B (10 x 20 screen)"
+Print #intININame, ";   105 = MicroPalm PC3040V (1/2 wide PC screen)"
+Print #intININame, ";"
+Print #intININame, "; Default: 1"
+Print #intININame, LabC0.Tag & "=" & CombC0.Tag
+Print #intININame, ""
+Print #intININame, "; International date format: 0=DDMMYY, 1=MMDDYY, 2=YYMMDD"
+Print #intININame, "; Default: 1=MMDDYY"
+Print #intININame, LabC1.Tag & "=" & CombC1.Tag
+Print #intININame, ""
+Print #intININame, "; Write to comm log (track) file: 0=No log, 1=Write to log"
+Print #intININame, "; Default: Write to log"
+Print #intININame, LabC2.Tag & "=" & CombC2.Tag
+Print #intININame, ""
+Print #intININame, "; Select Distortion Alert (diagnostic 5) Mode when Programming:"
+Print #intININame, "; 0=Never Enable, 1=Always Enable, 2=Prompt Operator"
+Print #intININame, "; Default : Always Enable"
+Print #intININame, LabC5.Tag & "=" & CombC5.Tag
+Print #intININame, ""
+Print #intININame, "; This section provides a mechanism for automatically setting the manual demand"
+Print #intININame, "; reset inhibit flag after performing either the full program or restore"
+Print #intININame, "; function.  This function only works with kV firmware revision 4.0 or greater."
+Print #intININame, "; Set manual demand reset inhibit flag after programming or restoring:"
+Print #intININame, "; 0=Don't inhibit, 1=Inhibit manual demand reset."
+Print #intININame, "; Default: Don't inhibit"
+Print #intININame, LabC7.Tag & "=" & CombC7.Tag
+Print #intININame, ""
+If Option1.Value Then '只有windows版本才會有的設定
+   Print #intININame, "; This section provides a mechanism for automatically setting the"
+   Print #intININame, "; Time Change LP Boundary Inhinit flag after performing either the full program or restore"
+   Print #intININame, "; function.  This function only works with WX111, WX112."
+   Print #intININame, "; Set Time Change LP Boundary Inhinit flag after programming or restoring:"
+   Print #intININame, "; 0=Don't inhibit, 1=Inhibit Time Change LP Boundary."
+   Print #intININame, "; Default: Don't inhibit"
+   Print #intININame, "TimeChangeLpBoundary = 0"
+   Print #intININame, ""
+End If
+Print #intININame, "; This section provides a mechanism for extending Privileges to access with any (reader)"
+Print #intININame, "; password restricted to modify the customer/reader password(s) in Standard table 84."
+Print #intININame, "; Set Extended Provileges flag to allow access to any password restricted to"
+Print #intININame, "; modifying the customer/reader passwords in Mfg. Tbl. 84."
+Print #intININame, "; 0=Provileges not set, 1=set Privileges."
+Print #intININame, "; Default: Provileges not set"
+Print #intININame, LabC6.Tag & "=" & CombC6.Tag
+If Option1.Value Then '只有windows版本才會有的設定
+   Print #intININame, ""
+   Print #intININame, "; Prompting of 'Comm Bd program Found but no Comm Bd Found' Alert message will be"
+   Print #intININame, "; decided according to this section's value. If '1', prompt the message else do not"
+   Print #intININame, "; prompt the message to the user"
+   Print #intININame, LabC8.Tag & "=" & CombC8.Tag
+   
+   Print #intININame, ";set languagetype"
+   Print #intININame, ";English = 0 / T.Chinese = 1 ; Default = 0 (English)"
+   
+   ' 2014/09/24 Wuyo
+   ' 因為在DAP上有這一行會錯，所以如果是要給DAP用的就把這行給註解
+   If CombC0_Link.Text = "Laptop or Desktop Win7" Then
+    Print #intININame, ";Language = 1"
+   Else
+    Print #intININame, "Language = 1"
+   End If
+   
+End If
+Print #intININame, ""
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section defines operating parameters used when reading meters.  It is "
+Print #intININame, "; directly editable by the Configure/Reading menu option in the MMCOMM software."
+Print #intININame, ""
+Print #intININame, "[Reading]"
+Print #intININame, ""
+Print #intININame, "; Reset after read: 0=No reset, 1=Reset"
+Print #intININame, "; Default: No reset"
+Print #intININame, LabD0.Tag & "=" & CombD0.Tag
+
+Print #intININame, ""
+Print #intININame, "; Time sync after read: 0=No time sync, 1=Time sync"
+Print #intININame, "; Default: No time sync"
+Print #intININame, LabD2.Tag & "=" & CombD2.Tag
+
+Print #intININame, ""
+Print #intININame, "; Prompt for comment before reading meter: 0=No prompt, 1=Prompt for comment"
+Print #intININame, "; Default: Prompt for comment"
+Print #intININame, LabD1.Tag & "=" & CombD1.Tag
+
+Print #intININame, ""
+Print #intININame, "; Min and max time differences for auto time sync (hh:mm:ss)"
+Print #intININame, "; Default: Min=00:05:00, Max=00:15:00"
+Print #intININame, LabD10.Tag & "=" & TxtD10.Text
+Print #intININame, LabD9.Tag & "=" & TxtD9.Text
+Print #intININame, ""
+Print #intININame, "; Select Reading Method: 0=Full Read, 1=Read New Data, 2=Read X Days"
+Print #intININame, "; Default: Full Read"
+Print #intININame, LabD11.Tag & "=" & CombD11.Tag
+Print #intININame, ""
+Print #intININame, "; Number of days to read if partial read is set to X Days."
+Print #intININame, "; Default: 35 days"
+Print #intININame, LabD12.Tag & "=" & CombD12.Tag + 1
+Print #intININame, ""
+Print #intININame, "; Update the number of unread blocks after a read: 1=Update, 0=Prevent Update"
+Print #intININame, "; Default: Prevent Update"
+Print #intININame, LabD7.Tag & "=" & CombD7.Tag
+Print #intININame, ""
+Print #intININame, "; Increment fixed call date by one month: 0=Don't increment, 1=Increment"
+Print #intININame, "; Default: 1"
+Print #intININame, LabD8.Tag & "=" & CombD8.Tag
+Print #intININame, ""
+Print #intININame, "; Read meter on Scheduled call in: 0=Don't read, 1=Read"
+Print #intININame, "; Default: 1"
+Print #intININame, LabD3.Tag & "=" & CombD3.Tag
+Print #intININame, ""
+Print #intININame, "; Read meter on Status call in: 0=Don't read, 1=Read"
+Print #intININame, "; Default: 0"
+Print #intININame, LabD4.Tag & "=" & CombD4.Tag
+Print #intININame, ""
+Print #intININame, "; Read meter on Power Restoration call in: 0=Don't read, 1=Read"
+Print #intININame, "; Default: 0"
+Print #intININame, LabD6.Tag & "=" & CombD6.Tag
+Print #intININame, ""
+Print #intININame, "; Read meter on Test call in: 0=Don't read, 1=Read"
+Print #intININame, "; Default: 0"
+Print #intININame, LabD5.Tag & "=" & CombD5.Tag
+Print #intININame, ""
+
+If Option1.Value Then 'MM550新增
+   Print #intININame, "; Read meter and save it with Meter Id as file name"
+   Print #intININame, "; 0 = Save Meter reading with the name provided in HHFFileName"
+   Print #intININame, "; 1 = Save Meter reading with MeterId as file name"
+   Print #intININame, "; Default: 0"
+   Print #intININame, Check1.Tag & "=" & Str(Check1.Value)
+   Print #intININame, ""
+   Print #intININame, "; Select Time Synchronization Option: 0=Host/PC Time, 1=GMT"
+   Print #intININame, "; Default: 0=Host/PC Time"
+   Print #intININame, "TimeSyncOption = 0"
+   Print #intININame, ""
+End If
+
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section defines operational parameters that control certain aspects of"
+Print #intININame, "; online call processing."
+Print #intININame, ""
+Print #intININame, "[Online]"
+Print #intININame, ""
+Print #intININame, "; Automaticaly hangup after processing call in: 0=Don't hangup, 1=Hangup"
+Print #intININame, "; Default: 1"
+Print #intININame, LabE0.Tag & "=" & CombE0.Tag
+Print #intININame, ""
+Print #intININame, "; Clear scheduled call flag to prevent repeat calls: 0=Don't reset, 1=Reset"
+Print #intININame, "; Default: 1"
+Print #intININame, LabE1.Tag & "=" & CombE1.Tag
+Print #intININame, ""
+Print #intININame, "; Clear status call flag to prevent repeat calls: 0=Don't reset, 1=Reset"
+Print #intININame, "; Default: 1"
+Print #intININame, LabE2.Tag & "=" & CombE2.Tag
+Print #intININame, ""
+Print #intININame, "; Clear restoration call flag to prevent repeat calls: 0=Don't reset, 1=Reset"
+Print #intININame, "; Default: 1"
+Print #intININame, LabE3.Tag & "=" & CombE3.Tag
+Print #intININame, ""
+Print #intININame, "; Program on Scheduled call: 0=Don't Program, 1=Program"
+Print #intININame, "; Default: 0"
+Print #intININame, LabE4.Tag & "=" & CombE4.Tag
+
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section defines needed file names and directories.  This information is"
+Print #intININame, "; directly editable by the Configure/Files option in the MMCOMM software.  Some"
+Print #intININame, "; of this information is also edited by the SETUP program."
+Print #intININame, ""
+Print #intININame, "[Files]"
+Print #intININame, ""
+Print #intININame, "; Name of file to be used to store next meter read"
+Print #intININame, "; Default: READER.HHF"
+Print #intININame, LabF0.Tag & "=" & TxtF0.Text
+Print #intININame, ""
+Print #intININame, "; Name of communication log file"
+Print #intININame, "; Default: TRACKFIL.LOG"
+Print #intININame, LabF1.Tag & "=" & TxtF1.Text
+Print #intININame, ""
+Print #intININame, "; Path in which to look for program files"
+Print #intININame, "; Default: Current directory ('.\')"
+Print #intININame, LabF2.Tag & "=" & TxtF2_Link.Text
+Print #intININame, ""
+Print #intININame, "; Path in which to store meter readings"
+Print #intININame, "; Default: Current directory ('.\')"
+Print #intININame, LabF3.Tag & "=" & TxtF3_Link.Text
+Print #intININame, ""
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section defines the port configurations.  This information is directly"
+Print #intININame, "; editable by the Configure/Ports menu option in the MMCOMM software.  Some"
+Print #intININame, "; information is also edited by the SETUP program.  Port IRQ and base address "
+Print #intININame, "; can be overwritten to handle special requirments of some card modems or "
+Print #intININame, "; internal modems.  See the [CustomPort] section below."
+Print #intININame, ""
+Print #intININame, "[Port]"
+Print #intININame, ""
+Print #intININame, "; OPTOCOM port: COM1, COM2, COM3, or COM4"
+Print #intININame, "; Default: COM1"
+Print #intININame, LabG0.Tag & "=" & CombG0.Tag
+Print #intININame, ""
+Print #intININame, "; OPTOCOM baud rate: 9600, 14400, 19200, 28800, 57600"
+Print #intININame, "; Default: 9600"
+Print #intININame, LabG1.Tag & "=" & CombG1.Tag
+Print #intININame, ""
+Print #intININame, "; MODEM port: COM1, COM2, COM3, or COM4"
+Print #intININame, "; Default: COM2"
+Print #intININame, LabG2.Tag & "=" & CombG2.Tag
+Print #intININame, ""
+If Option1.Value Then '只有WINDOWS版本才有
+   Print #intININame, "; USB port : COM1, COM2, COM3, COM4,.....,COM255"
+   Print #intININame, "; Default: COM3"
+   Print #intININame, LabG4.Tag & "=" & CombG4.Tag
+   Print #intININame, ""
+   Print #intININame, "; USB baud rate: 9600, 14400, 19200, 28800, 57600"
+   Print #intININame, "; Default: 9600"
+   Print #intININame, LabG5.Tag & "=" & CombG5.Tag
+   Print #intININame, ""
+End If
+If CombC0_Link.ListIndex = 0 Or Option1.Value Then 'DOS版本桌上型與WINDOWS版本才有LPT
+   Print #intININame, "; Printer port: LPT1 or LPT2"
+   Print #intININame, "; Default: LPT1"
+   Print #intININame, LabG3.Tag & "=" & CombG3.Tag
+   Print #intININame, ""
+End If
+If Option1.Value Then '只有WINDOWS版本才有
+   Print #intININame, "; RS485 baud rate: 9600 Only"
+   Print #intININame, "; RS485 port : COM1, COM2, COM3, COM4,.....,COM255"
+   Print #intININame, "; Default: COM2"
+   Print #intININame, LabG6.Tag & "=" & CombG6.Tag
+End If
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section provides a mechanism for overriding the default UART setup."
+Print #intININame, "; Not usually required for external modems on COM1 or COM2. Refer to setup "
+Print #intININame, "; instructions for your PCMCIA or internal modem."
+Print #intININame, ""
+Print #intININame, "[CustomPort]"
+Print #intININame, ""
+Print #intININame, "; UART configuration: UART1, UART2, UART3, UART4 (number indicates com port)"
+Print #intININame, "; Syntax: UARTx (decimal IRQ#),(HEX address)"
+Print #intININame, "; Example: UART3=4,3E8"
+Print #intININame, ""
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section defines the modem configurations.  This information is directly"
+Print #intININame, "; editable by the Configure/Modem menu option in the DOS software."
+Print #intININame, ""
+Print #intININame, "[Modem]"
+Print #intININame, ""
+Print #intININame, "; Call origination baud rate: 300, 1200, 2400"
+Print #intININame, "; Note: Baud rate of 9600 may be specified for RSX boards alone."
+Print #intININame, "; Default: 2400"
+Print #intININame, LabI0.Tag & "=" & CombI0.Tag
+Print #intININame, ""
+Print #intININame, "; Modem Call Origination Setup strings.  These strings are sent to the"
+Print #intININame, "; MeterMate (host) modem before placing a call.  Each setup string may "
+Print #intININame, "; be up to 20 charactors.  Null setup strings (OR SETUP STRINGS FOLLOWING"
+Print #intININame, "; A NULL SETUP STRING) are not sent.  Individual setup commands (ex: &M0) "
+Print #intININame, "; must not span two setup strings.   The "; AT; " prefix MUST BE omitted."
+Print #intININame, "; Default: '&FX4&M0', '', '', ''"
+If Len(TxtI1.Text) > 0 Then
+   Print #intININame, LabI1.Tag & "=" & TxtI1.Text
+Else
+   Print #intININame, LabI1.Tag & "=''"
+End If
+If Len(TxtI2.Text) > 0 Then
+   Print #intININame, LabI2.Tag & "=" & TxtI2.Text
+Else
+   Print #intININame, LabI2.Tag & "=''"
+End If
+If Len(TxtI3.Text) > 0 Then
+   Print #intININame, LabI3.Tag & "=" & TxtI3.Text
+Else
+   Print #intININame, LabI3.Tag & "=''"
+End If
+If Len(TxtI4.Text) > 0 Then
+   Print #intININame, LabI4.Tag & "=" & TxtI4.Text
+Else
+   Print #intININame, LabI4.Tag & "=''"
+End If
+
+Print #intININame, ""
+Print #intININame, "; Call answering baud rate: 300, 1200, 2400, 9600 (for RSX boards only)"
+Print #intININame, "; Note: Baud rate of 9600 may be specified for RSX boards only."
+Print #intININame, "; Default: 2400"
+Print #intININame, LabI6.Tag & "=" & CombI6.Tag
+Print #intININame, ""
+Print #intININame, "; Modem Call Answering Setup strings.  These strings are sent to the"
+Print #intININame, "; MeterMate (host) modem before waiting for incoming calls.  Each setup "
+Print #intININame, "; string may be up to 20 charactors.  Null setup strings (OR SETUP STRINGS "
+Print #intININame, "; FOLLOWING A NULL SETUP STRING) are not sent.  Individual setup commands "
+Print #intININame, "; (ex: &M0) must not span two setup strings.   The "; AT; " prefix MUST BE "
+Print #intININame, "; omitted."
+Print #intININame, "; Default: 'S0=1', '', '', ''"
+If Len(TxtI7.Text) > 0 Then
+   Print #intININame, LabI7.Tag & "='" & TxtI7.Text & "'"
+Else
+   Print #intININame, LabI7.Tag & "=''"
+End If
+If Len(TxtI8.Text) > 0 Then
+   Print #intININame, LabI8.Tag & "='" & TxtI8.Text & "'"
+Else
+   Print #intININame, LabI8.Tag & "=''"
+End If
+If Len(TxtI9.Text) > 0 Then
+   Print #intININame, LabI9.Tag & "='" & TxtI9.Text & "'"
+Else
+   Print #intININame, LabI9.Tag & "=''"
+End If
+If Len(TxtI10.Text) > 0 Then
+   Print #intININame, LabI10.Tag & "='" & TxtI10.Text & "'"
+Else
+   Print #intININame, LabI10.Tag & "=''"
+End If
+
+Print #intININame, ""
+Print #intININame, "; Fix communications baud rate with local modem at 9600 baud. Has no effect"
+Print #intININame, "; on baud rate over telephone line, only between PC and local modem. Usually"
+Print #intININame, "; requires setup string parameters to fix baud rate to PC (commonly '&B1', "
+Print #intININame, "; modem dependent) and to fix baud rate over telephone lines (modem dependant). "
+Print #intININame, "; Warning: consistent setup parameters must be programmed into RSX board"
+Print #intININame, "; and in MMDOS configuration.Must be set when using Sierra Wireless Dart 200 "
+Print #intININame, "; CDPD modems: 0=don't fix, 1=fix at 9600"
+Print #intININame, "; Default: 0"
+Print #intININame, LabI5.Tag & "=" & CombI5.Tag
+Print #intININame, ""
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section keeps track of parameters that must be passed from program"
+Print #intININame, "; to program while a modem connection is active.  Not directly configurable."
+Print #intININame, ""
+Print #intININame, "[Dialing]"
+Print #intININame, ""
+Print #intININame, "; Last called phone number"
+If Len(TxtJ0.Text) > 0 Then
+   Print #intININame, LabJ0.Tag & "='" & TxtJ0.Text & "'"
+Else
+   Print #intININame, LabJ0.Tag & "=''"
+End If
+Print #intININame, ""
+Print #intININame, "; Connect baud rate"
+If Len(TxtJ1.Text) > 0 Then
+   Print #intININame, LabJ1.Tag & "='" & TxtJ1.Text & "'"
+Else
+   Print #intININame, LabJ1.Tag & "=''"
+End If
+Print #intININame, ""
+Print #intININame, ";-------------------------------------------------------------------------------"
+Print #intININame, "; This section provides a mechanism for automatically setting the meter's Seal"
+Print #intININame, "; Flag after performing either the full program or restore function."
+Print #intININame, ""
+Print #intININame, "[Seal]"
+Print #intININame, ""
+Print #intININame, "; Seal after programming or restoring: 0=Don't seal, 1=Seal"
+Print #intININame, "; Default: Don't seal"
+Print #intININame, LabH0.Tag & "=" & CombH0.Tag
+If Option1.Value Then
+   Print #intININame, ""
+   Print #intININame, ""
+   Print #intININame, "[SoftSwitches]"
+   Print #intININame, ""
+   Print #intININame, "; 0=Don't display soft switches while programming"
+   Print #intININame, "; 1=display soft switches while programming"
+   Print #intININame, ""
+   Print #intININame, LabK0.Tag & "=" & CombK0.Tag
+   Print #intININame, ""
+   Print #intININame, "; 0=Don't upgrade soft switches display while upgrading or downgrading, "
+   Print #intININame, "; 1=upgrade soft switches display while upgrading or downgrading"
+   Print #intININame, ""
+   Print #intININame, LabK1.Tag & "=" & CombK1.Tag
+   Print #intININame, ""
+   Print #intININame, "[CommLog]"
+   Print #intININame, "Logfile = 0"
+   
+   'MM550新增
+   Print #intININame, ";-------------------------------------------------------------------------------"
+   Print #intININame, "; This section defines Communication parameters.  It is directly editable"
+   Print #intININame, "; by the Start Communication screen in the MMCOMM software."
+   Print #intININame, "[Communication]"
+   Print #intININame, ";Meter Standard type:"
+   Print #intININame, ";   0 = ANSI"
+   Print #intININame, ";   1 = IEC"
+   Print #intININame, ";   Default: 0 = ANSI"
+   Print #intININame, "StandardType = 0"
+   Print #intININame, "; Meter type:"
+   Print #intININame, ";   0 = Polyphase Meter (kV Series)"
+   Print #intININame, ";   1 = Energy Only Meter (I210, I210+)"
+   Print #intININame, ";   2 = Single Phase Demand TOU Meter (I210+c)"
+   Print #intININame, ";   3 = Wimax Single Phase Demand TOU Meter (WX210+c)"
+   Print #intININame, ";   4 = Polyphase Meter (SM300, SM310)"
+   Print #intININame, ";   5 = Single Phase Demand TOU Meter (SM110,WX111,WX112,SM111,SM112)"
+   Print #intININame, ";"
+   Print #intININame, "; Default: 0"
+   Print #intININame, "MeterType = 2"
+   Print #intININame, ""
+   Print #intININame, "; Communication type:"
+   Print #intININame, ";   0 = Optocom (RS232)"
+   Print #intININame, ";   1 = Modem (External/Internal)"
+   Print #intININame, ";   2 = Optocom (USB)"
+   Print #intININame, ";   3 = RSX Multidrop (RS485)"
+   Print #intININame, ";   4 = IP Communication"
+   Print #intININame, ";"
+   Print #intININame, "; Default: 0"
+   Print #intININame, "CommunicationType = 2"
+   Print #intININame, ";3rd Praty Comm Board Installed:"
+   Print #intININame, ";   0 = Unchecked"
+   Print #intININame, ";   1 = Checked"
+   Print #intININame, ";   Default: 0 = Unchecked"
+   Print #intININame, "CommBoardInstalled = 0"
+End If
+
+   Print #intININame, ""
+   Print #intININame, ";[Toggle]"
+   Print #intININame, ";Source = 550"
+   If Option1.Value Then
+      Print #intININame, ";Destination = 550(MMCOMM Build 6)"
+   Else
+      Print #intININame, ";Destination = 510(MMDOS)"
+   End If
+If strOs = "Windows" Then
+   Label6.Caption = "MMCOMM.INI檔資料寫入成功"
+ElseIf strOs = "Dos" Then
+   Label6.Caption = "MMDOS.INI檔資料寫入成功"
+End If
+Close #intININame
+WriteINI = True
+Exit Function
+WriteINI_ERROR:
+MsgBox "寫入ini檔發生錯誤", 48
+WriteINI = False
+End Function
+
+
+
+Public Sub Option1_Click()
+If Option1.Value Then
+   Call ClearData(False)
+   Option1.ForeColor = &HFF0000
+   Option2.ForeColor = &H80000012
+   'Frame3.Caption = "MMCOMM.INI路徑"
+   'Label1.Caption = "MMCOMM.INI"
+   Label11.Caption = "設定MMCOMM.INI輸出資料"
+   Frame2.Caption = "設定MMCOMM.INI"
+   DefPath = "MMCOMM"
+   'Text2.Enabled = True
+   'Text3.Enabled = True
+   Text3.Enabled = False
+   Text1.Text = ""
+   SetPath (True)
+   If Dir(App.path & "\MMCOMM\MMCOMM.ini") <> "" Then
+      Text1.Text = App.path & "\MMCOMM\MMCOMM.ini"
+      Call ReadINIFile
+      TxtF2_Link.Text = "C:\MMCOMM550\PROGRAMS\" '此處修改預設安裝路徑
+      TxtF3_Link.Text = "C:\MMCOMM550\READINGS\"
+   Else
+      MsgBox "MMDOS.INI不在預設路徑目錄下", 48
+   End If
+End If
+End Sub
+
+Public Sub Option2_Click()
+Option2.Value = True
+If Option2.Value Then
+   Call ClearData(False)
+   Option2.ForeColor = &HFF0000
+   Option1.ForeColor = &H80000012
+   'Frame3.Caption = "MMDOS.INI路徑"
+   'Label1.Caption = "MMDOS.INI"
+   Label11.Caption = "設定MMDOS.INI輸出資料"
+   Frame2.Caption = "設定MMDOS.INI"
+   DefPath = "MMATE"
+   'Text2.Enabled = True
+   'Text3.Enabled = True
+   Text3.Enabled = False
+   Text1.Text = ""
+   SetPath (True)
+   If Dir(App.path & "\DOSHH\MMDOS.INI") <> "" Then
+      Text1.Text = App.path & "\DOSHH\MMDOS.INI"
+      Call ReadINIFile
+      TxtF2_Link.Text = "D:\MMATE\PROGRAMS\" '此處修改預設安裝路徑
+      TxtF3_Link.Text = "D:\MMATE\READINGS\"
+   Else
+      MsgBox "MMDOS.INI不在預設路徑目錄下", 48
+   End If
+End If
+End Sub
+
+Public Sub SetPath(Blnset As Boolean)
+Text1.Enabled = Blnset
+'Command1.Enabled = Blnset
+End Sub
+Public Sub SetINI(Blnset As Boolean)
+txtA0.Enabled = False '不可修改
+txtA1.Enabled = False '不可修改
+TxtB0.Enabled = Blnset
+TxtB1.Enabled = Blnset
+TxtB2.Enabled = Blnset
+TxtB3.Enabled = Blnset
+CombC0.Enabled = Blnset
+CombC1.Enabled = Blnset
+CombC2.Enabled = Blnset
+CombC3.Enabled = Blnset
+TxtC4.Enabled = False '不可修改
+CombC5.Enabled = Blnset
+CombC6.Enabled = Blnset
+CombC7.Enabled = Blnset
+CombC8.Enabled = Blnset
+CombD0.Enabled = Blnset
+CombD1.Enabled = Blnset
+CombD2.Enabled = Blnset
+CombD3.Enabled = Blnset
+CombD4.Enabled = Blnset
+CombD5.Enabled = Blnset
+CombD6.Enabled = Blnset
+CombD7.Enabled = Blnset
+CombD8.Enabled = Blnset
+If CombD2.ListIndex = 1 Then
+   TxtD9.Enabled = Blnset
+   TxtD10.Enabled = Blnset
+Else
+   TxtD9.Enabled = False
+   TxtD10.Enabled = False
+End If
+CombD11.Enabled = Blnset
+If CombD11.ListIndex = 2 Then
+   CombD12.Enabled = Blnset
+Else
+   CombD12.Enabled = False
+End If
+CombE0.Enabled = Blnset
+CombE1.Enabled = Blnset
+CombE2.Enabled = Blnset
+CombE3.Enabled = Blnset
+CombE4.Enabled = Blnset
+TxtF0.Enabled = Blnset
+TxtF1.Enabled = Blnset
+TxtF2.Enabled = Blnset
+TxtF3.Enabled = Blnset
+CombG0.Enabled = Blnset
+CombG1.Enabled = Blnset
+CombG2.Enabled = Blnset
+CombG3.Enabled = Blnset
+CombG4.Enabled = Blnset
+CombG5.Enabled = Blnset
+CombG6.Enabled = Blnset
+CombG7.Enabled = False '不可修改(只有一個速率)
+CombH0.Enabled = Blnset
+CombI0.Enabled = Blnset
+TxtI1.Enabled = Blnset
+TxtI2.Enabled = Blnset
+TxtI3.Enabled = Blnset
+TxtI4.Enabled = Blnset
+CombI5.Enabled = Blnset
+CombI6.Enabled = Blnset
+TxtI7.Enabled = Blnset
+TxtI8.Enabled = Blnset
+TxtI9.Enabled = Blnset
+TxtI10.Enabled = Blnset
+
+TxtJ0.Enabled = Blnset
+TxtJ1.Enabled = Blnset
+CombK0.Enabled = Blnset
+CombK1.Enabled = Blnset
+CombC3_Link.Enabled = Blnset
+CombC0_Link.Enabled = Blnset
+CombG0_Link.Enabled = Blnset
+CombG2_Link.Enabled = Blnset
+TxtF2_Link.Enabled = Blnset
+TxtF3_Link.Enabled = Blnset
+'Text2.Enabled = Blnset
+'Text3.Enabled = Blnset
+'Text2.Enabled = blnSet
+'Text3.Enabled = blnSet
+If Option2.Value Then
+   CombC8.Enabled = False
+   CombK0.Enabled = False
+   CombK1.Enabled = False
+   CombG4.Enabled = False
+   CombG5.Enabled = False
+   CombG6.Enabled = False
+   CombG7.Enabled = False
+End If
+If Option1.Value Then '僅能選桌上型電腦
+   CombC0.Enabled = True
+   CombC0_Link.Enabled = True 'modifyed by Wuyo 2014/08/05
+End If
+SSTab2.Tab = 11
+SSTab2.Enabled = Blnset
+
+End Sub
+
+Function InputSystemData(strType As String, strTPC As String, strTPC2 As String) As Boolean
+Dim strFile As String
+Dim intFileIn As Integer
+Dim intFileOut As Integer
+Dim File_Input As String
+Dim strExeDos As String
+Dim pId As Long, pHnd As Long ' 分別宣告 Process Id 及 Process Handle 變數
+Dim strPath() As String
+Dim intLoop As Integer
+Dim strOutput As String
+Dim strStop As Integer
+'On Error GoTo InputSystemData_ERR
+DoEvents
+
+strPath = Split(TxtF2_Link.Text, "\")
+If Len(strPath(UBound(strPath))) = 0 Then
+   strStop = UBound(strPath) - 2
+Else
+   strStop = UBound(strPath) - 1
+End If
+
+For intLoop = 0 To strStop
+    If intLoop = strStop Then
+       strOutput = strOutput & strPath(intLoop)
+    Else
+       strOutput = strOutput & strPath(intLoop) & "\"
+    End If
+Next
+
+strTPC = GetDirectoryName(strTPC, strTPC2)
+If strType = "Laptop or Desktop" Then
+   strFile = "laptop.txt"
+ElseIf strType = "DAP PC 9000 Handheld" Then
+   strFile = "dap9000.txt"
+ElseIf strType = "DAP PC 9500/9800 Handheld" Then
+   strFile = "dap9500.txt"
+ElseIf strType = "Hewlett Packard 200LX Palmtop" Then
+   strFile = "hp200lx.txt"
+ElseIf strType = "Micro Palm PC/3000 (8x20) Handheld" Then
+   strFile = "mp3000a.txt"
+ElseIf strType = "Micro Palm PC/3000 (10x20) Handheld" Then
+   strFile = "mp3000b.txt"
+ElseIf strType = "Micro Palm PC/3040v Handheld" Then
+   strFile = "mp3040.txt"
+End If
+If Dir(App.path & "\FileMove.bat") <> "" Then
+   Kill (App.path & "\FileMove.bat")
+End If
+
+
+
+If Option1.Value Then 'MMCOMM
+   intFileOut = FreeFile
+   
+    ' 2014/09/19, Wuyo
+    ' 因為不同版本的都會輸出到 "MMCOMM_FOR_PC\Disk1" 底下
+    ' 所以新增一個"Disk_Win7" 藉此區別
+   Open App.path & "\Program\" & strTPC & "\" & Text3.Text & "\Install.bat" For Output As #intFileOut
+   If CombC0_Link.Text = "Laptop or Desktop Win7" Then
+        Print #intFileOut, "MMCOMM_FOR_PC\Disk1_Win7\Setup.exe"
+   Else
+        Print #intFileOut, "MMCOMM_FOR_PC\Disk1\Setup.exe"
+   End If
+   
+   Close #intFileOut
+   
+   intFileOut = FreeFile
+   Open App.path & "\Program\" & strTPC & "\" & Text3.Text & "\Update.bat" For Output As #intFileOut
+        Print #intFileOut, "del/S/Q " & TxtF2_Link.Text
+        Print #intFileOut, "xcopy/E/S/Y MMCOMM " & strOutput
+        Print #intFileOut, "xcopy/E/S/Y WinPatch " & strOutput
+   Close #intFileOut
+
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\WinPatch", vbDirectory) = "" Then
+      XCOPYBat
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\WinPatch")
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\WinPatch\Reports")  ' 2014/09/19 Wuyo
+      pId = Shell(App.path & "\xcpfile.bat " & App.path & "\WinPatch " & App.path & "\Program\" & strTPC & "\" & Text3.Text & "\WinPatch")
+      pHnd = OpenProcess(SYNCHRONIZE, 0, pId) ' 取得 Process Handle
+      If pHnd <> 0 Then
+         Call WaitForSingleObject(pHnd, INFINITE) ' 無限等待，直到程式結束
+         Call CloseHandle(pHnd)
+      End If
+      Kill (App.path & "\xcpfile.bat")
+   End If
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS")
+   End If
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV")
+   End If
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2")
+   End If
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2C", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2C")
+   End If
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2cAEIC", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2cAEIC")
+   End If
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2cAEICold", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2cAEICold")
+   End If
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2cX", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2cX")
+   End If
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\SM110", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\SM110")
+   End If
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\SM300", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\SM300")
+   End If
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\SM310", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\SM310")
+   End If
+   
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\I210", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\I210")
+   End If
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\READINGS", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\READINGS")
+   End If
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\WIN", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\WIN")
+   End If
+   
+   Call PathCopy(App.path & "\Consult\DAP\WinPatch", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\WinPatch", "")
+   Call PathCopy(App.path & "\Consult\DAP\WinPatch\Reports", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\WinPatch\Reports", "")
+   
+   If blnI210_ONLY_Serials_Output Then
+      Call PathCopy(App.path & "\MMCOMM\PROGRAMS\kV", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV", "")
+      Call PathCopy(App.path & "\MMCOMM\PROGRAMS\kV2", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2", "")
+      Call PathCopy(App.path & "\MMCOMM\PROGRAMS\kV2c", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2c", "")
+      Call PathCopy(App.path & "\MMCOMM\PROGRAMS\kV2cAEIC", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2cAEIC", "")
+      Call PathCopy(App.path & "\MMCOMM\PROGRAMS\kV2cAEICold", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2cAEICold", "")
+      Call PathCopy(App.path & "\MMCOMM\PROGRAMS\kV2cX", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\kV2cX", "")
+      Call PathCopy(App.path & "\MMCOMM\PROGRAMS\SM110", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\SM110", "")
+      Call PathCopy(App.path & "\MMCOMM\PROGRAMS\SM300", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\SM300", "")
+      Call PathCopy(App.path & "\MMCOMM\PROGRAMS\SM310", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\SM310", "")
+   End If
+   
+   Call PathCopy(App.path & "\MMCOMM\PROGRAMS", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS", "")
+
+   '============================================================================================================================
+   Call PathCopy(App.path & "\MMCOMM\PROGRAMS\I210", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\I210", "")
+   '============================================================================================================================
+'   Call PathCopy(App.path & "\MMCOMM\READINGS, App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM\READINGS", "")
+
+   'FileCopy App.path & "\WIN\MMTMP.INI", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\WIN\MMTMP.INI"
+   FileCopy App.path & "\WIN\Mmwin.ini", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\WIN\Mmwin.ini"
+
+   '-------------------------------------------------------------------------------------------------------
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM_FOR_PC", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM_FOR_PC")
+   End If
+   
+   '2014/09/10 Wuyo
+   If CombC0_Link.Text = "Laptop or Desktop Win7" Then
+    If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM_FOR_PC\MMATE_WIN7", vbDirectory) = "" Then
+      'MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM_FOR_PC\MMATE_WIN7")
+    End If
+   Else
+      If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM_FOR_PC\Disk1", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM_FOR_PC\Disk1")
+   End If
+   End If
+   
+   
+   
+   '==============================================================================================================
+   ' This line is copy files installation to target folder
+   ' 2014/09/10 Wuyo
+   ' When "輸出設備類型" is "Laptop or Desktop win7", copy "DAP" files to target folder
+   If CombC0_Link.Text = "Laptop or Desktop Win7" Then
+    ' Wuyo: Hardcode. If you can rewrite this code, do it!!
+    'Call DirectoryCopy(App.path & "\consult\Win7", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM_FOR_PC", "")
+    Call DirectoryCopy(App.path & "\consult\DAP\Win7", App.path & "\Program\" & strTPC & "\" & Text3.Text, "")
+   Else
+    Call PathCopy(App.path & "\consult\PC\Disk1", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\MMCOMM_FOR_PC\Disk1", "")
+   End If
+   
+   
+End If
+
+
+If Option2.Value Then
+
+   If CombC0.ListIndex = 0 Then
+      intFileOut = FreeFile
+      Open App.path & "\Program\" & strTPC & "\" & Text3.Text & "\Install.bat" For Output As #intFileOut
+      Print #intFileOut, "md " & DefDrive & DefPath
+   End If
+   intFileIn = FreeFile
+   Open App.path & "\format\" & strFile For Input As #intFileIn
+   
+   Do While (Not (EOF(intFileIn)))
+      Line Input #intFileIn, File_Input
+      If Left(File_Input, 1) <> ";" And Trim(File_Input) <> "" Then '若最左邊字元不為;時(不為註解)
+         'Debug.Print File_Input
+         If CombC0.ListIndex = 0 Then
+            Print #intFileOut, "COPY " & File_Input & " " & DefDrive & DefPath
+         End If
+         If UCase(File_Input) <> "MMDOS.INI" Then
+            If Left(File_Input, 1) = "*" Then
+               Call PathCopy(App.path & "\DOSHH\", App.path & "\Program\" & strTPC & "\" & Text3.Text, File_Input)
+            Else
+               FileCopy App.path & "\DOSHH\" & File_Input, App.path & "\Program\" & strTPC & "\" & Text3.Text & "\" & File_Input
+            End If
+            
+         End If
+      End If
+   Loop
+   Close #intFileIn
+   
+   If CombC0.ListIndex = 0 Then
+      Print #intFileOut, "md " & DefDrive & DefPath & "\PROGRAMS"
+      Print #intFileOut, "COPY " & "PROGRAMS\*.* " & DefDrive & DefPath & "\PROGRAMS"
+      Print #intFileOut, "md " & DefDrive & DefPath & "\PROGRAMS\kV"
+      Print #intFileOut, "COPY " & "PROGRAMS\kV\*.* " & DefDrive & DefPath & "\PROGRAMS\kV"
+      Print #intFileOut, "md " & DefDrive & DefPath & "\PROGRAMS\kV2"
+      Print #intFileOut, "COPY " & "PROGRAMS\kV2\*.* " & DefDrive & DefPath & "\PROGRAMS\kV2"
+      Print #intFileOut, "md " & DefDrive & DefPath & "\PROGRAMS\kV2C"
+      Print #intFileOut, "COPY " & "PROGRAMS\kV2C\*.* " & DefDrive & DefPath & "\PROGRAMS\kV2C"
+      Print #intFileOut, "md " & DefDrive & DefPath & "\PROGRAMS\kV2cAEIC"
+      Print #intFileOut, "COPY " & "PROGRAMS\kV2cAEIC\*.* " & DefDrive & DefPath & "\PROGRAMS\kV2cAEIC"
+      '=============================================================================
+      Print #intFileOut, "md " & DefDrive & DefPath & "\PROGRAMS\I210"
+      Print #intFileOut, "COPY " & "PROGRAMS\I210\*.* " & DefDrive & DefPath & "\PROGRAMS\I210"
+      '=============================================================================
+      Print #intFileOut, "md " & DefDrive & DefPath & "\READINGS"
+   End If
+   Close #intFileOut
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS")
+   End If
+   Call PathCopy(App.path & "\MMCOMM\PROGRAMS", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS", "")
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV")
+   End If
+   Call PathCopy(App.path & "\MMCOMM\PROGRAMS\kV", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV", "")
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2")
+   End If
+   Call PathCopy(App.path & "\MMCOMM\PROGRAMS\kV2", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2", "")
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2C", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2C")
+   End If
+   Call PathCopy(App.path & "\MMCOMM\PROGRAMS\kV2C", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2C", "")
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2cAEIC", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2cAEIC")
+   End If
+   
+   '===============================================================================================================
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\I210", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\I210")
+   End If
+   Call PathCopy(App.path & "\MMCOMM\PROGRAMS\I210", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\I210", "")
+   '===============================================================================================================
+   
+   Call PathCopy(App.path & "\MMCOMM\PROGRAMS\kV2cAEIC", App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2cAEIC", "")
+   
+   If Dir(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\READINGS", vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strTPC & "\" & Text3.Text & "\READINGS")
+   End If
+End If
+Label6.Caption = "複製相關資料至" & strTPC & "\" & Text3.Text & "目錄下已完成"
+
+InputSystemData = True
+Exit Function
+InputSystemData_ERR:
+MsgBox "輸出安裝檔發生錯誤", 48
+InputSystemData = False
+End Function
+
+Public Sub DataLink()
+Dim intLoop As Integer
+For intLoop = 0 To CombC0.ListCount - 1
+    CombC0_Link.AddItem CombC0.List(intLoop)
+Next intLoop
+'CombC0_Link.ListIndex = CombC0.ListIndex
+
+For intLoop = 0 To CombG0.ListCount - 1
+    CombG0_Link.AddItem CombG0.List(intLoop)
+Next intLoop
+'CombG0_Link.ListIndex = CombG0.ListIndex
+
+For intLoop = 0 To CombG2.ListCount - 1
+    CombG2_Link.AddItem CombG2.List(intLoop)
+Next intLoop
+
+For intLoop = 0 To CombC3.ListCount - 1
+    CombC3_Link.AddItem CombC3.List(intLoop)
+Next intLoop
+'CombG2_Link.ListIndex = CombG2.ListIndex
+'TxtF2_Link.Text = TxtF2.Text
+'TxtF3_Link.Text = TxtF3.Text
+
+End Sub
+
+
+
+
+
+Private Sub SSTab2_Click(PreviousTab As Integer)
+'Debug.Print SSTab2.Tab & " " & PreviousTab
+If SSTab2.Tab = 1 Then
+    If Len(TxtB1.Text) = 0 Then
+       TxtB1.Text = Text2.Text
+    End If
+    If Len(TxtB2.Text) = 0 Then
+       TxtB2.Text = Text4.Text
+    End If
+    If Len(TxtB3.Text) = 0 Then
+       TxtB3.Text = Text5.Text
+    End If
+End If
+End Sub
+
+Private Sub Text2_Change()
+If SSTab2.Tab = 11 Then
+    TxtB1.Text = Text2.Text
+End If
+End Sub
+
+Private Sub Text4_Change()
+If SSTab2.Tab = 11 Then
+    TxtB2.Text = Text4.Text
+End If
+End Sub
+
+Private Sub Text5_Change()
+If SSTab2.Tab = 11 Then
+    TxtB3.Text = Text5.Text
+End If
+End Sub
+
+Private Sub TxtB1_Change()
+If SSTab2.Tab = 1 Then
+   Text2.Text = TxtB1.Text
+End If
+End Sub
+
+
+Private Sub TxtB2_Change()
+If SSTab2.Tab = 1 Then
+    Text4.Text = TxtB2.Text
+End If
+End Sub
+
+Private Sub TxtB3_Change()
+If SSTab2.Tab = 1 Then
+    Text5.Text = TxtB3.Text
+End If
+End Sub
+
+Private Sub TxtF2_Change()
+If TxtF2.Text <> TxtF2_Link.Text Then
+   TxtF2_Link.Text = TxtF2.Text
+End If
+End Sub
+
+
+
+Private Sub TxtF2_Link_Change()
+If TxtF2.Text <> TxtF2_Link.Text Then
+   TxtF2.Text = TxtF2_Link.Text
+End If
+End Sub
+
+Private Sub TxtF3_Change()
+If TxtF3.Text <> TxtF3_Link.Text Then
+   TxtF3_Link.Text = TxtF3.Text
+End If
+End Sub
+
+Private Sub TxtF3_Link_Change()
+If TxtF3.Text <> TxtF3_Link.Text Then
+   TxtF3.Text = TxtF3_Link.Text
+End If
+End Sub
+
+Sub Modify_Pro(path As String)
+Dim strFileName As String
+Dim intFile As Integer
+Dim byteVer As Byte
+Dim byteVer2 As Byte
+Dim byteHeader(4) As Byte
+Dim strData As String
+intFile = FreeFile
+byteHeader(0) = &H20
+byteHeader(1) = &H20
+byteHeader(2) = &H20
+byteHeader(3) = &H20
+byteVer2 = &H20
+byteVer = &H31
+
+strFileName = Dir(App.path & "\" & path & "\PROGRAMS\KV\*.PRO")
+Do
+  If strFileName = "" Then Exit Do
+  Open App.path & "\" & path & "\PROGRAMS\KV\" & strFileName For Binary As #intFile
+  Do While (Not (EOF(intFile)))
+     Seek #intFile, 543
+     Put #intFile, , byteVer
+     Exit Do
+  Loop
+  Close #intFile
+  strFileName = Dir
+Loop
+
+'------------------------------------
+
+strFileName = Dir(App.path & "\" & path & "\PROGRAMS\KV2\*.PRO")
+Do
+  If strFileName = "" Then Exit Do
+  Open App.path & "\" & path & "\PROGRAMS\KV2\" & strFileName For Binary As #intFile
+  Do While (Not (EOF(intFile)))
+     Seek #intFile, 543
+     Put #intFile, , byteVer
+     Exit Do
+  Loop
+  Close #intFile
+  strFileName = Dir
+Loop
+
+'----------------------------------
+
+strFileName = Dir(App.path & "\" & path & "\PROGRAMS\KV2C\*.PRO")
+Do
+  If strFileName = "" Then Exit Do
+  Open App.path & "\" & path & "\PROGRAMS\KV2C\" & strFileName For Binary As #intFile
+  Do While (Not (EOF(intFile)))
+     'Seek #intFile, 10
+     'Put #intFile, , byteVer2
+     'Seek #intFile, 11
+     'Put #intFile, , byteVer2
+     'Seek #intFile, 12
+     'Put #intFile, , byteVer2
+     'Seek #intFile, 13
+     'Put #intFile, , byteVer2
+     'Seek #intFile, 14
+     'Put #intFile, , byteVer2
+     Seek #intFile, 543
+     Put #intFile, , byteVer
+     Exit Do
+  Loop
+  Close #intFile
+  strFileName = Dir
+Loop
+
+'----------------------------------
+
+strFileName = Dir(App.path & "\" & path & "\PROGRAMS\kV2cAEIC\*.PRO")
+Do
+  If strFileName = "" Then Exit Do
+  Open App.path & "\" & path & "\PROGRAMS\kV2cAEIC\" & strFileName For Binary As #intFile
+  Do While (Not (EOF(intFile)))
+     Seek #intFile, 543
+     Put #intFile, , byteVer
+     Exit Do
+  Loop
+  Close #intFile
+  strFileName = Dir
+Loop
+End Sub
+
+Sub Modify_DAT(path As String)
+Dim strFileName As String
+Dim intFile As Integer
+Dim byteVer As Byte
+Dim byteVer2 As Byte
+Dim byteHeader(19) As Byte
+Dim strData As String
+intFile = FreeFile
+byteHeader(0) = &H20
+byteHeader(1) = &H20
+byteHeader(2) = &H20
+byteHeader(3) = &H20
+byteVer2 = &H20
+byteVer = &H31
+strFileName = Dir(App.path & "\" & path & "\PROGRAMS\KV\*.PRO")
+Do
+  If strFileName = "" Then Exit Do
+  Open App.path & "\" & path & "\PROGRAMS\KV\" & strFileName For Binary As #intFile
+  Do While (Not (EOF(intFile)))
+     Seek #intFile, 543
+     Put #intFile, , byteVer
+     Exit Do
+  Loop
+  Close #intFile
+  strFileName = Dir
+Loop
+End Sub
+
+Public Sub OutputSec(strTPC As String, strUserId As String, strLogin As String, strMeterPWD As String, blnTest As Boolean, strLoginID As Integer)
+Dim intReadFile As Integer
+Dim intWriteFile As Integer
+Dim byteChar As Byte
+Dim intModify As Integer
+Dim StrCode As String
+Dim ModifyA(10) As Byte 'UserName
+Dim ModifyB(10) As Byte 'login pwd
+Dim ModifyC(10) As Byte 'UserID
+Dim ModifyD(10) As Byte 'security
+Dim ModifyE(2) As Byte  'LoginID
+Dim ModifyPOWER(13) As Byte 'Master權限
+Dim strDirectory As String
+Dim intLoop As Integer
+Dim strHex As String
+
+
+Dim CHByte() As Byte
+Dim intMove As Integer
+'Dim intLoop As Integer
+
+Dim pId As Long, pHnd As Long ' 分別宣告 Process Id 及 Process Handle 變數
+strDirectory = GetDirectoryName(strTPC, strUserId)
+
+'If Dir(App.path & "\mmcomm\programs\S0000USC.DAT") <> "" Then
+If Dir(App.path & "\mmcomm\programs\S0000USC520.DAT") <> "" Then
+   If Dir(App.path & "\Program", vbDirectory) = "" Then
+      MkDir (App.path & "\Program") '建立第一層目錄
+   End If
+   
+   If Dir(App.path & "\Program\" & strDirectory, vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strDirectory)  '建立第二層目錄
+   End If
+   
+   If Dir(App.path & "\Program\" & strDirectory & "\" & Text3.Text, vbDirectory) = "" Then
+      MkDir (App.path & "\Program\" & strDirectory & "\" & Text3.Text)  '建立第三層目錄
+   End If
+   If Option1.Value Then
+      If Dir(App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\mmcomm", vbDirectory) = "" Then
+         MkDir (App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\mmcomm") '建立第四層目錄
+      End If
+   
+      If Dir(App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\mmcomm\programs", vbDirectory) = "" Then
+         MkDir (App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\mmcomm\programs") '建立第四層目錄
+      End If
+   ElseIf Option2.Value Then
+      If Dir(App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\programs", vbDirectory) = "" Then
+         MkDir (App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\programs") '建立第四層目錄
+      End If
+   End If
+   
+   '=================== 建立區處名稱參數 ===================
+   For intLoop = 0 To 9
+       ModifyA(intLoop) = &H20
+   Next
+   intMove = 0
+   For intLoop = 0 To Len(strTPC) - 1
+       If AscW(Mid(strTPC, intLoop + 1, 1)) > &HFF Or AscW(Mid(strTPC, intLoop + 1, 1)) < &H0 Then
+          CHByte() = StrConv(Mid(strTPC, intLoop + 1, 1), vbFromUnicode)
+          ModifyA(intMove) = CHByte(0)
+          ModifyA(intMove + 1) = CHByte(1)
+          intMove = intMove + 1
+       Else
+          ModifyA(intLoop) = AscW(Mid(strTPC, intLoop + 1, 1))
+       End If
+       intMove = intMove + 1
+   Next
+   '=================== 建立區處代碼參數 ===================
+   '---------------------------------------------------------------------------------
+   For intLoop = 0 To 9
+       ModifyB(intLoop) = &H20
+   Next
+   For intLoop = 0 To Len(strUserId) - 1
+       ModifyB(intLoop) = Asc(Mid(strUserId, intLoop + 1, 1))
+   Next
+   If UCase(strUserId) = AdministratorName Then
+      blnMaster = True
+   Else
+      blnMaster = False
+   End If
+   '=================== 建立軟體密碼參數 ===================
+   '---------------------------------------------------------------------------------
+   For intLoop = 0 To 9
+       ModifyC(intLoop) = &H20
+   Next
+   StrCode = DoCrypt(strLogin, 0) '進行(明)密碼(暗)編碼
+    'StrCode = strLogin
+   For intLoop = 0 To Len(StrCode) - 1
+       ModifyC(intLoop) = Asc(Mid(StrCode, intLoop + 1, 1))
+   Next
+   '=================== 建立電表密碼參數 ===================
+   '---------------------------------------------------------------------------------
+   For intLoop = 0 To 9
+       ModifyD(intLoop) = &H20
+   Next
+   For intLoop = 0 To 9
+       ModifyD(intLoop) = "&h" & Mid(strMeterPWD, intLoop * 2 + 1, 2)
+   Next
+   '=================== 建立使用權限參數 ===================
+   '--------------------------------------------------------------------------------
+   For intLoop = 0 To 12
+       ModifyPOWER(intLoop) = &H0
+   Next
+   '=================== 建立使用者代碼參數 ===================
+   '--------------------------------------------------------------------------------
+   ModifyE(1) = &H0
+   ModifyE(0) = &H0
+   strHex = Hex(strLoginID)
+   For intLoop = Len(strHex) To 3
+       strHex = "0" & strHex
+   Next
+   ModifyE(1) = Val("&h" & Left(strHex, 2))
+   ModifyE(0) = Val("&h" & Right(strHex, 2))
+
+  
+      
+   If Option1.Value Then
+      '---------------------------------------------------------------------------------
+      '刪除原有程式的dat檔
+      intWriteFile = FreeFile
+      'If Dir(App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\mmcomm\programs\S0000USC.DAT") <> "" Then
+      '   Kill (App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\mmcomm\programs\S0000USC.DAT")
+      If Dir(App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\mmcomm\programs\S0000USC520.DAT") <> "" Then
+         Kill (App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\mmcomm\programs\S0000USC520.DAT")
+      End If
+     
+      '---------------------------------------------------------------------------------
+    
+      'Open App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\mmcomm\programs\S0000USC.DAT" For Binary As #intWriteFile
+      Open App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\mmcomm\programs\S0000USC520.DAT" For Binary As #intWriteFile
+      
+   ElseIf Option2.Value Then
+      '---------------------------------------------------------------------------------
+      '刪除原有程式的dat檔
+      intWriteFile = FreeFile
+      'If Dir(App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\PROGRAMS\S0000USC.DAT") <> "" Then
+      '   Kill (App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\PROGRAMS\S0000USC.DAT")
+      If Dir(App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\PROGRAMS\S0000USC520.DAT") <> "" Then
+         Kill (App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\PROGRAMS\S0000USC520.DAT")
+      End If
+      
+      '---------------------------------------------------------------------------------
+      
+      'Open App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\programs\S0000USC.DAT" For Binary As #intWriteFile
+      Open App.path & "\Program\" & strDirectory & "\" & Text3.Text & "\programs\S0000USC520.DAT" For Binary As #intWriteFile
+      
+   End If
+      
+   intReadFile = FreeFile
+   Open App.path & "\mmcomm\programs\S0000USC520.DAT" For Binary As #intReadFile '開啟來源dat檔
+   Seek #intReadFile, 1
+   Do While (Not (EOF(intReadFile))) '讀取security dat到陣列內
+      Call InputArrayData(Signature, intReadFile, 8)
+      'Debug.Print strUserId & " => " & Signature(0)
+      Call InputArrayData(FileFormate, intReadFile, 2)
+      Call InputArrayData(Version, intReadFile, 5)
+      Call InputArrayData(CreateDateTime, intReadFile, 14)
+      Call InputArrayData(ExpirationDate, intReadFile, 23)
+      Call InputArrayData(CustomerName, intReadFile, 30)
+      Call InputArrayData(NumUser, intReadFile, 2)
+      Call InputArrayData(NumSecCodes, intReadFile, 2)
+      
+      '----------------------------------------------------------------------------
+      ' Modified By Wuyo 2014/08/05
+      ' In the first, those are hardcode,
+      ' which assume two users and one meterpassword in the .dat.
+      Dim DatNumUser As Integer
+      Dim DatNumSecCodes As Integer
+      Dim iLoop As Integer
+      
+      DatNumUser = CLng("&H" & NumUser(1) & NumUser(0))
+      DatNumSecCodes = CLng("&H" & NumSecCodes(1) & NumSecCodes(0))
+      
+      For iLoop = 0 To DatNumUser - 1
+        If iLoop = 0 Then
+            Call InputArrayData(MasterName, intReadFile, 10)
+            Call InputArrayData(MasterPwd, intReadFile, 10)
+            Call InputArrayData(MasterID, intReadFile, 10)
+            Call InputArrayData(MasterLevel, intReadFile, 3)  '5.20開始修正為3bytes
+            Call InputArrayData(MasterIDCode, intReadFile, 2)
+            Call InputArrayData(MasterLimit, intReadFile, 8)
+        Else
+            Call InputArrayData(UserName, intReadFile, 10)
+            Call InputArrayData(UserPWD, intReadFile, 10)
+            Call InputArrayData(UserID, intReadFile, 10)
+            Call InputArrayData(UserLevel, intReadFile, 3)    '5.20開始修正為3bytes
+            Call InputArrayData(UserIDCode, intReadFile, 2)
+            Call InputArrayData(UserLimit, intReadFile, 8)
+        End If
+        
+      Next
+
+      For iLoop = 0 To DatNumSecCodes - 1
+        Call InputArrayData(MasterAuth, intReadFile, 10)
+        Call InputArrayData(ReaderAuth, intReadFile, 10)
+        Call InputArrayData(CustomerAuth, intReadFile, 10)
+      Next
+      
+      Call InputArrayData(EndDat, intReadFile, 7)
+      '----------------------------------------------------------------------------
+      
+      Exit Do
+   Loop
+   
+   Close #intReadFile
+   
+   If blnMaster Then '複製master參數
+      For intLoop = 0 To 9
+          MasterName(intLoop) = ModifyA(intLoop)
+          MasterID(intLoop) = ModifyB(intLoop)
+          MasterPwd(intLoop) = ModifyC(intLoop)
+          MasterAuth(intLoop) = ModifyD(intLoop)
+      Next
+      blnHasMaster = True
+   Else
+      For intLoop = 0 To 9
+          UserName(intLoop) = ModifyA(intLoop)
+          UserID(intLoop) = ModifyB(intLoop)
+          UserPWD(intLoop) = ModifyC(intLoop)
+          MasterAuth(intLoop) = ModifyD(intLoop)
+      Next
+      If blnTest Then '如果是試驗所
+         UserLimit(3) = UserLimit(3) Or &H40
+      Else
+         UserLimit(3) = UserLimit(3) And &HBF
+      End If
+   End If
+   If blnHasMaster = False Then '若沒有設定Master，則將master權限清為0
+      MasterLevel(0) = 0
+      MasterLevel(1) = 0
+      MasterLevel(2) = 0
+      MasterIDCode(0) = 0
+      MasterIDCode(1) = 0
+      For intLoop = 0 To 7
+         MasterLimit(intLoop) = 0
+      Next
+      For intLoop = 0 To 9
+          MasterName(intLoop) = 0
+          MasterID(intLoop) = 0
+          MasterPwd(intLoop) = 0
+          'MasterAuth(intLoop) = 0
+      Next
+   End If
+   
+   If blnMaster And UCase(strUserId) = AdministratorName Then '針對只有Master的設定輸出
+      '設定登入的Login ID
+      MasterIDCode(1) = ModifyE(1)
+      MasterIDCode(0) = ModifyE(0)
+      
+      Call OutputArrayData(Signature, intWriteFile, 8)
+      Call OutputArrayData(FileFormate, intWriteFile, 2)
+      Call OutputArrayData(Version, intWriteFile, 5)
+      Call OutputArrayData(CreateDateTime, intWriteFile, 14)
+      Call OutputArrayData(ExpirationDate, intWriteFile, 23)
+      Call OutputArrayData(CustomerName, intWriteFile, 30)
+      NumUser(0) = 1 '1位使用者
+      NumUser(1) = 0
+      Call OutputArrayData(NumUser, intWriteFile, 2)
+      If blnFactory And blnSystem Then
+         NumSecCodes(0) = 3  '3組security code(概有的台電區處密碼 + 電表廠商的預設密碼 + 系統廠商的預設密碼)
+      Else
+         If blnFactory Or blnSystem Then
+            NumSecCodes(0) = 2 '2組security code(概有的台電區處密碼 + 電表廠商的預設密碼)
+         Else
+            NumSecCodes(0) = 1 '1組security code
+         End If
+      End If
+      NumSecCodes(1) = 0
+      Call OutputArrayData(NumSecCodes, intWriteFile, 2)
+      Call OutputArrayData(MasterName, intWriteFile, 10)
+      Call OutputArrayData(MasterPwd, intWriteFile, 10)
+      Call OutputArrayData(MasterID, intWriteFile, 10)
+      Call OutputArrayData(MasterLevel, intWriteFile, 3)  '5.20開始修正為3bytes
+      Call OutputArrayData(MasterIDCode, intWriteFile, 2)
+      Call OutputArrayData(MasterLimit, intWriteFile, 8)
+      
+      Call OutputArrayData(MasterAuth, intWriteFile, 10)
+      Call OutputArrayData(ReaderAuth, intWriteFile, 10)
+      Call OutputArrayData(CustomerAuth, intWriteFile, 10)
+      
+      If blnFactory Then  '如果需要放電表廠的預設密碼的話，在這邊就必須把密碼放上去(電表廠預設密碼，必須放在第二組，不可變成第一組)
+          Call OutputArrayData(byteFactoryPWD, intWriteFile, 10)
+          Call OutputArrayData(ReaderAuth, intWriteFile, 10)
+          Call OutputArrayData(CustomerAuth, intWriteFile, 10)
+      End If
+      
+      If blnSystem Then  '如果需要放電表廠的預設密碼的話，在這邊就必須把密碼放上去(電表廠預設密碼，必須放在第二組，不可變成第一組)
+          Call OutputArrayData(byteSystemPWD, intWriteFile, 10)
+          Call OutputArrayData(ReaderAuth, intWriteFile, 10)
+          Call OutputArrayData(CustomerAuth, intWriteFile, 10)
+      End If
+      
+      Call OutputArrayData(EndDat, intWriteFile, 7)
+      ' 第一筆資料為MANAGER時，要記錄相關參數
+      For intLoop = 0 To 9
+          MasterName_TPC(intLoop) = MasterName(intLoop)
+          MasterPWD_TPC(intLoop) = MasterPwd(intLoop)
+          MasterID_TPC(intLoop) = MasterID(intLoop)
+          MasterAuth_TPC(intLoop) = MasterAuth(intLoop)
+          ReaderAuth_TPC(intLoop) = ReaderAuth(intLoop)
+          CustomerAuth_TPC(intLoop) = CustomerAuth(intLoop)
+      Next
+      For intLoop = 0 To 7
+          MasterLimit_TPC(intLoop) = MasterLimit(intLoop)
+      Next
+      MasterIDCode_TPC(0) = MasterIDCode(0)
+      MasterIDCode_TPC(1) = MasterIDCode(1)
+   Else                                              '針對含有master+user的設定輸出
+      If UCase(strUserId) = FactoryName Then '針對只有電表廠商的設定輸出
+         '設定登入的Login ID
+         '======================================================================
+         UserIDCode(1) = ModifyE(1)
+         UserIDCode(0) = ModifyE(0)
+         Call OutputArrayData(Signature, intWriteFile, 8)
+         Call OutputArrayData(FileFormate, intWriteFile, 2)
+         Call OutputArrayData(Version, intWriteFile, 5)
+         Call OutputArrayData(CreateDateTime, intWriteFile, 14)
+         Call OutputArrayData(ExpirationDate, intWriteFile, 23)
+         Call OutputArrayData(CustomerName, intWriteFile, 30)
+         NumUser(0) = 1 '1位使用者
+         NumUser(1) = 0
+         Call OutputArrayData(NumUser, intWriteFile, 2)
+         NumSecCodes(0) = 1 '1組security code
+         NumSecCodes(1) = 0
+         Call OutputArrayData(NumSecCodes, intWriteFile, 2)
+      
+         Call OutputArrayData(UserName, intWriteFile, 10)
+         Call OutputArrayData(UserPWD, intWriteFile, 10)
+         Call OutputArrayData(UserID, intWriteFile, 10)
+         Call OutputArrayData(UserLevel, intWriteFile, 3)  '5.20開始修正為3bytes
+         Call OutputArrayData(UserIDCode, intWriteFile, 2)
+         Call OutputArrayData(UserLimit, intWriteFile, 8)
+        
+         Call OutputArrayData(MasterAuth, intWriteFile, 10)
+         Call OutputArrayData(ReaderAuth, intWriteFile, 10)
+         Call OutputArrayData(CustomerAuth, intWriteFile, 10)
+         
+         Call OutputArrayData(EndDat, intWriteFile, 7)
+         
+      ElseIf UCase(strUserId) = SystemName Then '針對只有System的設定輸出
+         '設定登入的Login ID
+         '======================================================================
+         UserIDCode(1) = ModifyE(1)
+         UserIDCode(0) = ModifyE(0)
+         Call OutputArrayData(Signature, intWriteFile, 8)
+         Call OutputArrayData(FileFormate, intWriteFile, 2)
+         Call OutputArrayData(Version, intWriteFile, 5)
+         Call OutputArrayData(CreateDateTime, intWriteFile, 14)
+         Call OutputArrayData(ExpirationDate, intWriteFile, 23)
+         Call OutputArrayData(CustomerName, intWriteFile, 30)
+         NumUser(0) = 1 '1位使用者
+         NumUser(1) = 0
+         Call OutputArrayData(NumUser, intWriteFile, 2)
+         NumSecCodes(0) = 1 '1組security code
+         If blnFactory Then
+             NumSecCodes(0) = 2 '2組security code(電表廠商的預設密碼 + 系統廠商的預設密碼)
+         Else
+             NumSecCodes(0) = 1 '1組security code
+         End If
+         
+         NumSecCodes(1) = 0
+         Call OutputArrayData(NumSecCodes, intWriteFile, 2)
+      
+         Call OutputArrayData(UserName, intWriteFile, 10)
+         Call OutputArrayData(UserPWD, intWriteFile, 10)
+         Call OutputArrayData(UserID, intWriteFile, 10)
+         Call OutputArrayData(UserLevel, intWriteFile, 3)  '5.20開始修正為3bytes
+         Call OutputArrayData(UserIDCode, intWriteFile, 2)
+         Call OutputArrayData(UserLimit, intWriteFile, 8)
+        
+         Call OutputArrayData(MasterAuth, intWriteFile, 10)
+         Call OutputArrayData(ReaderAuth, intWriteFile, 10)
+         Call OutputArrayData(CustomerAuth, intWriteFile, 10)
+         
+         If blnFactory Then '如果需要放電表廠的預設密碼的話，在這邊就必須把密碼放上去(電表廠預設密碼，必須放在第二組，不可變成第一組)
+             Call OutputArrayData(byteFactoryPWD, intWriteFile, 10)
+             Call OutputArrayData(ReaderAuth, intWriteFile, 10)
+             Call OutputArrayData(CustomerAuth, intWriteFile, 10)
+         End If
+         
+         Call OutputArrayData(EndDat, intWriteFile, 7)
+         
+      Else
+         '設定登入的Login ID
+         UserIDCode(1) = ModifyE(1)
+         UserIDCode(0) = ModifyE(0)
+         Call OutputArrayData(Signature, intWriteFile, 8)
+         Call OutputArrayData(FileFormate, intWriteFile, 2)
+         Call OutputArrayData(Version, intWriteFile, 5)
+         Call OutputArrayData(CreateDateTime, intWriteFile, 14)
+         Call OutputArrayData(ExpirationDate, intWriteFile, 23)
+         Call OutputArrayData(CustomerName, intWriteFile, 30)
+         NumUser(0) = 2 '2位使用者
+         NumUser(1) = 0
+         Call OutputArrayData(NumUser, intWriteFile, 2)
+         If blnFactory And blnSystem Then
+             NumSecCodes(0) = 3 '3組security code(概有的台電區處密碼 + 電表廠商的預設密碼 + 系統廠商的預設密碼)
+         Else
+             If blnFactory Or blnSystem Then
+                NumSecCodes(0) = 2 '2組security code(概有的台電區處密碼 + 電表廠商的預設密碼)
+             Else
+                NumSecCodes(0) = 1 '1組security code
+             End If
+         End If
+      
+         NumSecCodes(1) = 0
+         Call OutputArrayData(NumSecCodes, intWriteFile, 2)
+         
+         Call OutputArrayData(MasterName_TPC, intWriteFile, 10)
+         Call OutputArrayData(MasterPWD_TPC, intWriteFile, 10)
+         Call OutputArrayData(MasterID_TPC, intWriteFile, 10)
+         Call OutputArrayData(MasterLevel, intWriteFile, 3)  '5.20開始修正為3bytes
+         Call OutputArrayData(MasterIDCode, intWriteFile, 2)
+         Call OutputArrayData(MasterLimit, intWriteFile, 8)
+      
+         Call OutputArrayData(UserName, intWriteFile, 10)
+         Call OutputArrayData(UserPWD, intWriteFile, 10)
+         Call OutputArrayData(UserID, intWriteFile, 10)
+         Call OutputArrayData(UserLevel, intWriteFile, 3)  '5.20開始修正為3bytes
+         Call OutputArrayData(UserIDCode, intWriteFile, 2)
+         Call OutputArrayData(UserLimit, intWriteFile, 8)
+        
+         Call OutputArrayData(MasterAuth, intWriteFile, 10)
+         Call OutputArrayData(ReaderAuth, intWriteFile, 10)
+         Call OutputArrayData(CustomerAuth, intWriteFile, 10)
+         
+         If blnFactory Then '如果需要放電表廠的預設密碼的話，在這邊就必須把密碼放上去(電表廠預設密碼，必須放在第二組，不可變成第一組)
+             Call OutputArrayData(byteFactoryPWD, intWriteFile, 10)
+             Call OutputArrayData(ReaderAuth, intWriteFile, 10)
+             Call OutputArrayData(CustomerAuth, intWriteFile, 10)
+         End If
+     
+         If blnSystem Then '如果需要放System的預設密碼的話，在這邊就必須把密碼放上去(System預設密碼，必須放在第一組之後)
+             Call OutputArrayData(byteSystemPWD, intWriteFile, 10)
+             Call OutputArrayData(ReaderAuth, intWriteFile, 10)
+             Call OutputArrayData(CustomerAuth, intWriteFile, 10)
+         End If
+         
+         Call OutputArrayData(EndDat, intWriteFile, 7)
+      End If
+   End If
+   'Put #intWriteFile, , MASTERModifyB(intLoop)
+        
+   Close #intWriteFile
+   
+   Erase CHByte()
+   'MsgBox "Security Code輸出ok"
+End If
+End Sub
+Public Sub OutputArrayData(ByRef byteOutput() As Byte, ByRef intFile As Integer, intIndex As Integer)
+Dim intLoop As Integer
+    For intLoop = 0 To (intIndex - 1)
+        Put intFile, , byteOutput(intLoop)
+   Next
+End Sub
+Public Sub InputArrayData(ByRef byteInput() As Byte, ByRef intFile As Integer, intIndex As Integer)
+Dim byteChar As Byte
+Dim intLoop As Integer
+    For intLoop = 0 To (intIndex - 1)
+        If (Not (EOF(intFile))) Then
+            Get #intFile, , byteChar
+            byteInput(intLoop) = byteChar
+        End If
+   Next
+End Sub
+Public Sub ModifyPro(strTPC As String) '修改原PRO有二組M68資料，將符合新版的9010的刪除
+Dim ModifyTAB68 As Integer
+Dim ModifyHeaderEnd As Integer
+Dim intReadFile As Integer
+Dim intWriteFile As Integer
+Dim intMove As Integer
+Dim intMovePUT As Integer
+Dim ByteModify(14) As Byte
+Dim CHByte As Byte
+Dim intLoop As Integer
+Dim blnPath As Boolean
+Dim strFileName As String
+Dim strDecFileName As String
+Dim byteChar As Byte
+Dim FinalTableS As Integer
+Dim FinalTableD As Integer
+Dim intM68Length As Integer
+Dim pId As Long, pHnd As Long ' 分別宣告 Process Id 及 Process Handle 變數
+DoEvents
+blnPath = False
+
+'檢查放置kv2c.PRO路徑是否存在
+If Dir(App.path & "\program\" & strTPC & "\" & Text3.Text & "\Programs\kv2c", vbDirectory) <> "" Then
+   blnPath = True
+End If
+
+'Call ReFileName(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c", "PRO", "OLD")
+Call FileDelete(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c")
+strFileName = Dir(App.path & "\MMCOMM\PROGRAMS\kV2c\*.PRO")
+Do
+  If strFileName = "" Then Exit Do
+  intReadFile = FreeFile
+  Open App.path & "\MMCOMM\PROGRAMS\kV2c\" & strFileName For Binary As #intReadFile
+  '尋找stdtabd
+  intMove = 0
+  ModifyTAB68 = 0
+  ModifyHeaderEnd = 0
+  FinalTableS = 0
+  FinalTableD = 0
+  intM68Length = 0
+  Do While (Not (EOF(intReadFile)))
+     Get #intReadFile, , byteChar
+     
+     If intMove <= 13 Then
+        ByteModify(intMove) = byteChar
+     Else
+        For intLoop = 0 To 12
+            ByteModify(intLoop) = ByteModify(intLoop + 1)
+        Next
+        ByteModify(13) = byteChar
+     End If
+     '留第一組M68
+     If ByteModify(0) = &H53 And ByteModify(1) = &H54 And ByteModify(2) = &H44 And ByteModify(3) = &H54 And ByteModify(4) = &H41 And ByteModify(5) = &H42 And ByteModify(6) = &H44 And ByteModify(7) = &H8 And ByteModify(8) = &HD Then
+        ModifyTAB68 = intMove - 13
+     ElseIf ByteModify(0) = &H53 And ByteModify(1) = &H54 And ByteModify(2) = &H44 And ByteModify(3) = &H54 And ByteModify(4) = &H41 And ByteModify(5) = &H42 Then 'stdtab
+        FinalTableS = ((intMove - 13) + ByteModify(9) * &H100 + ByteModify(8) + 23) - 1
+        If ModifyTAB68 <> 0 And intM68Length = 0 Then
+           intM68Length = intMove - 14
+        End If
+        FinalTableD = FinalTableS - (intM68Length - ModifyTAB68) '最後實際的位置
+     End If
+     If ByteModify(0) = &H48 And ByteModify(1) = &H45 And ByteModify(2) = &H41 And ByteModify(3) = &H44 And ByteModify(4) = &H45 And ByteModify(5) = &H52 And ByteModify(6) = &H45 Then
+        If ByteModify(7) = &H4E And ByteModify(8) = &H44 And ByteModify(9) = &H20 And ByteModify(10) = &H46 And ByteModify(11) = &H49 And ByteModify(12) = &H4C And ByteModify(13) = &H45 Then
+           ModifyHeaderEnd = intMove - 14 - 4
+           'Debug.Print strFileName & ",最後位置=" & FinalTableS
+           'Debug.Print FinalTableD
+        End If
+     End If
+     intMove = intMove + 1
+  Loop
+  'Debug.Print strFileName & "=> " & ModifyTAB68 & "=> " & intM68Length
+  'Debug.Print strFileName & "=> " & "FinalTableS => " & FinalTableS & ",FinalTableD => " & FinalTableD & ",End =>" & ModifyHeaderEnd
+  
+  Seek #intReadFile, 1
+  'Seek #intReadFile, 1
+  '------------------------------------------------------------------------------------------
+  strDecFileName = Left(strFileName, InStr(strFileName, ".") - 1)
+  If Not (EOF(intReadFile)) Then
+     intWriteFile = FreeFile
+     Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c\" & strDecFileName & ".PRO" For Binary As #intWriteFile
+  End If
+  intMovePUT = 0
+  intMove = 0
+  Do While (Not (EOF(intReadFile)))
+     Get #intReadFile, , byteChar
+     If Not (intMovePUT >= ModifyTAB68 And intMovePUT <= intM68Length) Then  '不等於要刪的空間時，可輸出
+        If (Not (EOF(intReadFile))) Then
+           Put #intWriteFile, , byteChar
+           intMove = intMove + 1
+        End If
+     End If
+     
+     If FinalTableS = intMovePUT Then
+        CHByte = &H20
+        'Debug.Print "補空白" & (256 - (FinalTableD Mod 256))
+        For intLoop = 1 To (256 - (FinalTableD Mod 256))  '補上空白直到下一個256倍數
+            Put #intWriteFile, , CHByte
+        Next
+        Seek #intReadFile, ModifyHeaderEnd + 6
+     End If
+     intMovePUT = intMovePUT + 1
+  Loop
+  Close #intReadFile
+  Close #intWriteFile
+  strFileName = Dir
+Loop
+'Kill (App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c\*.old")
+
+End Sub
+
+Public Sub ModifyPro2(strTPC As String)
+Dim ModifyTAB68 As Integer
+Dim ModifyHeaderEnd As Integer
+Dim intReadFile As Integer
+Dim intWriteFile As Integer
+Dim intMove As Integer
+Dim intMovePUT As Integer
+Dim ByteModify(14) As Byte
+Dim CHByte As Byte
+Dim intLoop As Integer
+Dim blnPath As Boolean
+Dim strFileName As String
+Dim strDecFileName As String
+Dim byteChar As Byte
+
+Dim pId As Long, pHnd As Long ' 分別宣告 Process Id 及 Process Handle 變數
+DoEvents
+blnPath = False
+
+'檢查放置kv2c.PRO路徑是否存在
+If Dir(App.path & "\program\" & strTPC & "\" & Text3.Text & "\Programs\kv2c", vbDirectory) <> "" Then
+   blnPath = True
+End If
+
+'Call ReFileName(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c", "PRO", "OLD")
+Call FileDelete(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c")
+strFileName = Dir(App.path & "\MMCOMM\PROGRAMS\kV2c\*.PRO")
+Do
+  If strFileName = "" Then Exit Do
+  intReadFile = FreeFile
+  Open App.path & "\MMCOMM\PROGRAMS\kV2c\" & strFileName For Binary As #intReadFile
+  '尋找stdtabd
+  intMove = 0
+  ModifyTAB68 = 0
+  ModifyHeaderEnd = 0
+  Do While (Not (EOF(intReadFile)))
+     Get #intReadFile, , byteChar
+     
+     If intMove <= 13 Then
+        ByteModify(intMove) = byteChar
+     Else
+        For intLoop = 0 To 12
+            ByteModify(intLoop) = ByteModify(intLoop + 1)
+        Next
+        ByteModify(13) = byteChar
+     End If
+     If ByteModify(0) = 83 And ByteModify(1) = 84 And ByteModify(2) = 68 And ByteModify(3) = 84 And ByteModify(4) = 65 And ByteModify(5) = 66 And ByteModify(6) = 68 Then
+        If ModifyTAB68 = 0 Then
+           ModifyTAB68 = intMove - 7
+        End If
+     End If
+     If ByteModify(0) = &H48 And ByteModify(1) = &H45 And ByteModify(2) = &H41 And ByteModify(3) = &H44 And ByteModify(4) = &H45 And ByteModify(5) = &H52 And ByteModify(6) = &H45 Then
+        If ByteModify(7) = &H4E And ByteModify(8) = &H44 And ByteModify(9) = &H20 And ByteModify(10) = &H46 And ByteModify(11) = &H49 And ByteModify(12) = &H4C And ByteModify(13) = &H45 Then
+           ModifyHeaderEnd = intMove - 14
+        End If
+     End If
+     intMove = intMove + 1
+  Loop
+  'Debug.Print strFileName & "=> " & ModifyTAB68 & "=> " & ModifyHeaderEnd
+  Seek #intReadFile, 1
+  '------------------------------------------------------------------------------------------
+  strDecFileName = Left(strFileName, InStr(strFileName, ".") - 1)
+  If Not (EOF(intReadFile)) Then
+     intWriteFile = FreeFile
+     Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c\" & strDecFileName & ".PRO" For Binary As #intWriteFile
+  End If
+  intMovePUT = 0
+  Do While (Not (EOF(intReadFile)))
+     Get #intReadFile, , byteChar
+     If Not (intMovePUT >= ModifyTAB68 And intMovePUT <= ModifyTAB68 + 31) Then
+        If (Not (EOF(intReadFile))) Then
+           Put #intWriteFile, , byteChar
+        End If
+     End If
+     If ModifyHeaderEnd = intMovePUT Then
+        CHByte = &H20
+        For intLoop = 1 To 32
+            Put #intWriteFile, , CHByte
+        Next
+     End If
+     intMovePUT = intMovePUT + 1
+  Loop
+  Close #intReadFile
+  Close #intWriteFile
+  strFileName = Dir
+Loop
+'Kill (App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c\*.old")
+
+End Sub
+
+Public Sub CheckBat()
+Dim intWriteFile As Integer
+intWriteFile = FreeFile
+If Dir(App.path & "\RenPro.bat") = "" Then
+   Open App.path & "\RenPro.bat" For Output As #intWriteFile
+   Print #intWriteFile, "rename %1 %2"
+   Close #intWriteFile
+End If
+End Sub
+Public Sub XCOPYBat()
+Dim intWriteFile As Integer
+intWriteFile = FreeFile
+If Dir(App.path & "\xcpfile.bat") = "" Then
+   Open App.path & "\xcpfile.bat" For Output As #intWriteFile
+   Print #intWriteFile, "xcopy/E/S/Y %1 %2"
+   Close #intWriteFile
+End If
+End Sub
+Public Sub DeleteBat()
+Dim intWriteFile As Integer
+intWriteFile = FreeFile
+If Dir(App.path & "\Deltre2.bat") = "" Then
+   Open App.path & "\Deltre2.bat" For Output As #intWriteFile
+   Print #intWriteFile, "rd %1 /S/Q"
+   Close #intWriteFile
+End If
+End Sub
+
+'blnStat = True,開啟顯示 / blnStat = False,關閉顯示
+'intValue = 累加進度 (使用時，blnStat=True)
+Public Sub ShowNowRun(blnStat As Boolean, intValue As Integer)
+Dim Rs As Recordset
+SSTab2.Tab = 11
+If blnStat Then
+   If ProgressBar1.Visible = False Then
+      strSQL = "select * from MMtools order by UserId"
+      Set Rs = DBdata.OpenRecordset(strSQL)
+      If Not (Rs.EOF Or Rs.BOF) Then
+         Rs.MoveLast
+         Rs.MoveFirst
+         ProgressBar1.max = Rs.RecordCount
+         ProgressBar1.Min = 0
+         Label6.Visible = True
+      End If
+      Rs.Close
+      ProgressBar1.Value = 0
+      ProgressBar1.Visible = True
+      Label9.Visible = True
+      Label9.Caption = "0 % 已完成"
+      Label6.Caption = "準備進行程式匯出.."
+   Else
+      ProgressBar1.Value = ProgressBar1.Value + intValue
+      Label9.Caption = Format(ProgressBar1.Value / ProgressBar1.max * 100, "###") & " % 已完成"
+   End If
+
+Else
+   If ProgressBar1.Visible Then
+      ProgressBar1.Value = 0
+      ProgressBar1.Visible = False
+      Label9.Visible = False
+      Label9.Caption = "0"
+      Label6.Visible = False
+      
+      ' 2014/09/19 Wuyo
+      ' 因為還要做後續的加密處理，所以先不彈出msgbox
+      If CombC0_Link.Text <> "Laptop or Desktop Win7" Then
+            MsgBox "資料匯出完成", 64, "進度完成"
+      End If
+      
+   End If
+End If
+End Sub
+
+' 2014/09/10, Wuyo
+Public Sub DirectoryCopy(strSource As String, strDec As String, strFN As String)
+    Call CopyFindFile(strSource, "*.*", 0, 0, strDec)
+End Sub
+
+'strSource 來源路徑(當blnAll=TRUE時，須加上檔案名稱,blnAll為flase時，只要提供路徑即可)
+'strDec 目的路徑
+Public Sub PathCopy(strSource As String, strDec As String, strFN As String)
+Dim strFileName As String
+If strFN <> "" Then
+   strFileName = Dir(strSource & "\" & strFN)
+Else
+   strFileName = Dir(strSource & "\*.*")
+End If
+   Do
+     If strFileName = "" Then
+        Exit Do
+     Else
+        FileCopy strSource & "\" & strFileName, strDec & "\" & strFileName
+     End If
+     strFileName = Dir
+   Loop
+End Sub
+
+Public Sub ReFileName(strPath As String, strBefore As String, strAfter As String)
+Dim strFileName As String
+Dim strModify As String
+
+strFileName = Dir(strPath & "\*." & strBefore)
+   Do
+     If strFileName = "" Then
+        Exit Do
+     Else
+        strModify = Mid(strFileName, 1, InStr(strFileName, "."))
+        strModify = strModify & strAfter
+        If Dir(strPath & "\" & strModify) <> "" Then
+           Kill strPath & "\" & strModify
+        End If
+        strFileName = Dir
+     End If
+     Name strPath & "\" & strFileName As strPath & "\" & strModify
+   Loop
+
+End Sub
+
+Public Sub PathDelete(strPath As String)
+Dim strFileName As String
+Dim strDirName As String
+strDirName = Dir(strSource, vbDirectory)
+Do
+  If strDirName = "" Then
+     Exit Do
+  Else
+     Call FileDelete(strPath & "\" & strDirName)
+  End If
+  strDirName = Dir
+Loop
+End Sub
+Public Sub FileDelete(strPath As String)
+Dim strFileName As String
+strFileName = Dir(strPath & "\*.*")
+Do
+  If strFileName = "" Then
+     Exit Do
+  Else
+     Kill strPath & "\" & strFileName
+  End If
+  strFileName = Dir
+Loop
+End Sub
+
+'修改Timebase選項
+'這一部份要修改STDTAB跟Override的部份，它有可能只有STDTAB而沒有Override
+
+Public Sub ModifyProTimeBase(strDirectory As String, strTPC As String, blnCrystal As Boolean, VersionWin As Boolean)
+Dim intReadFile As Integer
+Dim intWriteFile As Integer
+'Dim intMove As Integer
+Dim intMove As Long
+Dim intMovePUT As Integer
+Dim ByteModify(37) As Byte
+Dim CHByte As Byte
+Dim intLoop As Integer
+Dim blnPath As Boolean
+Dim strFileName As String
+Dim strDecFileName As String
+Dim byteChar As Byte
+Dim FinalTableS As Integer
+Dim FinalTableD As Integer
+Dim intM68Length As Integer
+Dim ModifyTAB05 As Integer
+Dim ModifyTAB05_Ovr As Integer
+Dim pId As Long, pHnd As Long ' 分別宣告 Process Id 及 Process Handle 變數
+Dim strPROValue As String
+Dim strPROFormat As String
+Dim strMeterID2 As String
+Dim intIndexI210 As Integer
+Dim intI210Table_STDTAB(10) As Integer 'An I210's pro file have a lot of "Meter ID"
+Dim intI210Table_OVRIDE(10) As Integer 'An I210's pro file have a lot of "Meter ID"
+Dim intI210Table_STDTAB_Count As Integer
+Dim intI210Table_OVRIDE_Count As Integer 'An I210's pro file have a lot of "Meter ID"
+DoEvents
+blnPath = False
+intI210Table_STDTAB_Count = 0
+intI210Table_OVRIDE_Count = 0
+For intLoop = 0 To (UBound(intI210Table_STDTAB) - 1)
+    intI210Table_STDTAB(intLoop) = 0
+Next intLoop
+For intLoop = 0 To (UBound(intI210Table_OVRIDE) - 1)
+    intI210Table_OVRIDE(intLoop) = 0
+Next intLoop
+
+'檢查放置kv2c.PRO路徑是否存在
+If VersionWin = True Then
+   If Dir(App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\Programs\" & strDirectory, vbDirectory) <> "" Then
+      blnPath = True
+   End If
+Else
+   If Dir(App.path & "\program\" & strTPC & "\" & Text3.Text & "\Programs\" & strDirectory, vbDirectory) <> "" Then
+      blnPath = True
+   End If
+End If
+If blnPath = True Then
+    'Call ReFileName(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c", "PRO", "OLD")
+    'Call FileDelete(App.Path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c")
+    strFileName = Dir(App.path & "\MMCOMM\PROGRAMS\" & strDirectory & "\*.PRO")
+    Do
+      If strFileName = "" Then Exit Do
+      intReadFile = FreeFile
+      If VersionWin = True Then
+         Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intReadFile
+      Else
+         Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intReadFile
+      End If
+      
+      If StrComp(strDirectory, "I210") = 0 Then
+         intIndexI210 = 0
+      
+         Do While (Not (EOF(intReadFile)))
+            Get #intReadFile, , byteChar
+           
+            If intMove <= 13 Then
+                ByteModify(intMove) = byteChar
+            Else
+                For intLoop = 0 To 12
+                    ByteModify(intLoop) = ByteModify(intLoop + 1)
+                Next
+                ByteModify(13) = byteChar
+            End If
+            
+            If ByteModify(0) = &H53 And ByteModify(1) = &H54 And ByteModify(2) = &H44 And ByteModify(3) = &H54 And ByteModify(4) = &H41 And ByteModify(5) = &H42 And ByteModify(6) = &H42 And ByteModify(7) = &H8 Then
+               intI210Table_STDTAB(intI210Table_STDTAB_Count) = intMove - 13
+               intI210Table_STDTAB_Count = intI210Table_STDTAB_Count + 1
+               If (intI210Table_STDTAB_Count >= UBound(intI210Table_STDTAB)) Then
+                   MsgBox "I210+c 程式片段過長，程式輸出不正確!!"
+               End If
+            ElseIf ByteModify(0) = &H4F And ByteModify(1) = &H56 And ByteModify(2) = &H52 And ByteModify(3) = &H49 And ByteModify(4) = &H44 And ByteModify(5) = &H45 And ByteModify(6) = &H42 And ByteModify(7) = &H8 Then  'ovride
+               intI210Table_OVRIDE(intI210Table_OVRIDE_Count) = (intMove - 13)
+               intI210Table_OVRIDE_Count = intI210Table_OVRIDE_Count + 1
+               If (intI210Table_OVRIDE_Count >= UBound(intI210Table_OVRIDE)) Then
+                   MsgBox "I210+c 程式片段過長，程式輸出不正確!!"
+               End If
+            End If
+            
+            intMove = intMove + 1
+         Loop
+         Close #intReadFile
+         intMove = 0
+         '========================
+         '修改STDTAB M66,1,1
+         '========================
+         If (intI210Table_STDTAB_Count > 0) Then
+             intWriteFile = FreeFile
+             If Option1.Value = True Then
+                Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+             ElseIf Option2.Value = True Then
+                Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+             End If
+             
+             For intLoop = 0 To (UBound(intI210Table_STDTAB) - 1)
+                 If (intI210Table_STDTAB(intLoop) > 0) Then
+                     Seek #intWriteFile, (intI210Table_STDTAB(intLoop) + 25)
+                     
+                     If (blnCrystal = True) Then
+                         byteChar = 1 'Crystal
+                     Else
+                         byteChar = 0 'Line
+                     End If
+                     Put #intWriteFile, , byteChar
+                     
+                 Else
+                     Exit For
+                 End If
+             Next intLoop
+             Close #intWriteFile
+         End If
+         '========================
+         '修改STDTAB M66,1,1
+         '========================
+         If (intI210Table_OVRIDE_Count > 0) Then
+             intWriteFile = FreeFile
+             If Option1.Value = True Then
+                Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+             ElseIf Option2.Value = True Then
+                Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+             End If
+             
+             For intLoop = 0 To (UBound(intI210Table_OVRIDE) - 1)
+                 If (intI210Table_OVRIDE(intLoop) > 0) Then
+                     Seek #intWriteFile, (intI210Table_OVRIDE(intLoop) + 21)
+                     
+                     If (blnCrystal = True) Then
+                         byteChar = 2 'Crystal
+                     Else
+                         byteChar = 1 'Line
+                     End If
+                     Put #intWriteFile, , byteChar
+                 Else
+                     Exit For
+                 End If
+             Next intLoop
+             Close #intWriteFile
+         End If
+         intI210Table_STDTAB_Count = 0
+         intI210Table_OVRIDE_Count = 0
+         For intLoop = 0 To (UBound(intI210Table_STDTAB) - 1)
+             intI210Table_STDTAB(intLoop) = 0
+         Next intLoop
+         For intLoop = 0 To (UBound(intI210Table_OVRIDE) - 1)
+             intI210Table_OVRIDE(intLoop) = 0
+         Next intLoop
+         strFileName = Dir
+      Else
+         '尋找stdtabd
+         intMove = 0
+         FinalTableS = 0
+         FinalTableD = 0
+         intM68Length = 0
+         ModifyTAB05 = 0
+         ModifyTAB05_Ovr = 0
+         Do While (Not (EOF(intReadFile)))
+            Get #intReadFile, , byteChar
+            
+            If intMove <= 13 Then
+               ByteModify(intMove) = byteChar
+            Else
+               For intLoop = 0 To 12
+                   ByteModify(intLoop) = ByteModify(intLoop + 1)
+               Next
+               ByteModify(13) = byteChar
+            End If
+         
+            If ByteModify(0) = &H53 And ByteModify(1) = &H54 And ByteModify(2) = &H44 And ByteModify(3) = &H54 And ByteModify(4) = &H41 And ByteModify(5) = &H42 And ByteModify(6) = &H42 And ByteModify(7) = &H8 Then
+               ModifyTAB05 = intMove - 13
+            ElseIf ByteModify(0) = &H4F And ByteModify(1) = &H56 And ByteModify(2) = &H52 And ByteModify(3) = &H49 And ByteModify(4) = &H44 And ByteModify(5) = &H45 And ByteModify(6) = &H42 And ByteModify(7) = &H8 Then  'ovride
+               If ModifyTAB05 <> 0 And ModifyTAB05_Ovr = 0 Then
+                  ModifyTAB05_Ovr = (intMove - 13)
+                  Exit Do
+               End If
+            End If
+            intMove = intMove + 1
+         
+         Loop
+         Close #intReadFile
+
+     
+         '========================
+         '修改STDTAB M66,1,1
+         '========================
+         If ModifyTAB05 > 0 Then
+            intWriteFile = FreeFile
+            If Option1.Value = True Then
+               Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+            ElseIf Option2.Value = True Then
+               Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+            End If
+            
+            Seek #intWriteFile, (ModifyTAB05 + 25)
+       
+            Do While (Not (EOF(intWriteFile)))
+               If (blnCrystal = True) Then
+                   byteChar = 1 'Crystal
+               Else
+                   byteChar = 0 'Line
+               End If
+               Put #intWriteFile, , byteChar
+               Exit Do
+            Loop
+            Close #intWriteFile
+         End If
+      
+         '========================
+         '修改OVRIDE M66,1,1
+         '========================
+         If ModifyTAB05_Ovr > 0 Then
+            intWriteFile = FreeFile
+            If Option1.Value = True Then
+               Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+            ElseIf Option2.Value = True Then
+               Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+            End If
+            
+            Seek #intWriteFile, (ModifyTAB05_Ovr + 21)
+       
+            Do While (Not (EOF(intWriteFile)))
+               If (blnCrystal = True) Then
+                   byteChar = 2 'Crystal
+               Else
+                   byteChar = 1 'Line
+               End If
+               Put #intWriteFile, , byteChar
+               Exit Do
+            Loop
+            Close #intWriteFile
+         End If
+         strFileName = Dir
+      End If
+    Loop
+      
+    'Kill (App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c\*.old")
+End If
+
+End Sub
+Public Sub ModifyProMeterID2(strDirectory As String, strTPC As String, strTPC_MeterID2 As Integer, VersionWin As Boolean) '修改原PRO有二組M68資料，將符合新版的9010的刪除
+Dim intReadFile As Integer
+Dim intWriteFile As Integer
+'Dim intMove As Integer
+Dim intMove As Long
+Dim intMovePUT As Integer
+Dim ByteModify(37) As Byte
+Dim CHByte As Byte
+Dim intLoop As Integer
+Dim blnPath As Boolean
+Dim strFileName As String
+Dim strDecFileName As String
+Dim byteChar As Byte
+Dim FinalTableS As Integer
+Dim FinalTableD As Integer
+Dim intM68Length As Integer
+Dim ModifyTAB05 As Integer
+Dim ModifyTAB05_Ovr As Integer
+Dim pId As Long, pHnd As Long ' 分別宣告 Process Id 及 Process Handle 變數
+Dim strPROValue As String
+Dim strPROFormat As String
+Dim strMeterID2 As String
+Dim intIndexI210 As Integer 'An I210's pro file have a lot of "Meter ID"
+Dim intI210Table(10) As Integer 'An I210's pro file have a lot of "Meter ID"
+DoEvents
+blnPath = False
+
+'檢查放置kv2c.PRO路徑是否存在
+If VersionWin = True Then
+   If Dir(App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\Programs\" & strDirectory, vbDirectory) <> "" Then
+      blnPath = True
+      'MsgBox "Check Path: " + App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\Programs\" & strDirectory
+   End If
+Else
+   If Dir(App.path & "\program\" & strTPC & "\" & Text3.Text & "\Programs\" & strDirectory, vbDirectory) <> "" Then
+      blnPath = True
+      'MsgBox "Check Path: " + App.path & "\program\" & strTPC & "\" & Text3.Text & "\Programs\" & strDirectory
+   End If
+End If
+
+If blnPath = True Then
+    'Call ReFileName(App.path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c", "PRO", "OLD")
+    'Call FileDelete(App.Path & "\Program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c")
+    strFileName = Dir(App.path & "\MMCOMM\PROGRAMS\" & strDirectory & "\*.PRO")
+    Do
+      If strFileName = "" Then Exit Do
+      intReadFile = FreeFile
+      If VersionWin = True Then
+         Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intReadFile
+          'MsgBox "Open Path: " + App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName
+      Else
+         Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intReadFile
+         'MsgBox "Open Path: " + App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName
+      End If
+      
+      'Dim intIndexI210 As Integer 'An I210's pro file have a lot of "Meter ID"
+      'Dim intI210Table(5) As Integer 'An I210's pro file have a lot of "Meter ID"
+      For intLoop = 0 To (UBound(intI210Table) - 1)
+        intI210Table(intLoop) = -1
+      Next intLoop
+      
+      If StrComp(strDirectory, "I210") = 0 Then
+         intIndexI210 = 0
+      
+         Do While (Not (EOF(intReadFile)))
+            Get #intReadFile, , byteChar
+           
+            If intMove <= 13 Then
+                ByteModify(intMove) = byteChar
+            Else
+                For intLoop = 0 To 12
+                    ByteModify(intLoop) = ByteModify(intLoop + 1)
+                Next
+                ByteModify(13) = byteChar
+            End If
+            
+            If ByteModify(0) = &H4D And ByteModify(1) = &H65 And ByteModify(2) = &H74 And ByteModify(3) = &H65 And ByteModify(4) = &H72 And ByteModify(5) = &H20 And ByteModify(6) = &H49 And ByteModify(7) = &H44 And ByteModify(8) = &H20 Then
+                ModifyTAB05 = intMove - 13
+                intI210Table(intIndexI210) = Str((intMove - 13))
+                intIndexI210 = intIndexI210 + 1
+            End If
+            intMove = intMove + 1
+        Loop
+         intMove = 0
+         iLoop = 0
+         Close #intReadFile
+         
+         intWriteFile = FreeFile
+         
+         If Option1.Value = True Then
+            Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+         ElseIf Option2.Value = True Then
+            Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+         End If
+         
+         For intLoop = 0 To (UBound(intI210Table) - 1)
+            If intI210Table(intLoop) <> -1 Then
+                'Seek #intWriteFile, (intI210Table(intLoop) + 74)
+              Seek #intWriteFile, (intI210Table(intLoop) + (77 - Len(Trim(Str(strTPC_MeterID2)))))
+              iLoop = 1
+              Do While (Not (EOF(intWriteFile)))
+              
+              If iLoop <= (Len(Trim(Str(strTPC_MeterID2)))) Then
+                  If intI210Table(intLoop) > 0 Then
+                      'MsgBox "ID: " + Str(trTPC_MeterID2)
+                      'tewmp = Len(Str(trTPC_MeterID2))
+                      'CHByte = Asc(Mid(Str(strTPC_MeterID2), (Len(Str(strTPC_MeterID2)) + iLoop - 1), 1))
+                      
+                      CHByte = Asc(Mid(Trim(Str(strTPC_MeterID2)), iLoop, 1))
+                      'Debug.Print Str(Hex(CHByte))
+                      Put #intWriteFile, , CHByte
+                      'Put #intWriteFile, , Asc(9)
+                      iLoop = iLoop + 1
+                      
+                  End If
+              Else
+                  Exit Do
+              End If
+              Loop ' End Do While (Not (EOF(intWriteFile)))
+            iLoop = 0
+              End If
+        Next intLoop
+        Close #intReadFile
+        'MsgBox "GG1"
+        strFileName = Dir
+      Else ' None I210
+        '尋找stdtabd
+      intMove = 0
+      FinalTableS = 0
+      FinalTableD = 0
+      intM68Length = 0
+      ModifyTAB05 = 0
+      ModifyTAB05_Ovr = 0
+      Do While (Not (EOF(intReadFile)))
+         Get #intReadFile, , byteChar
+         
+         If intMove <= 13 Then
+            ByteModify(intMove) = byteChar
+         Else
+            For intLoop = 0 To 12
+                ByteModify(intLoop) = ByteModify(intLoop + 1)
+            Next
+            ByteModify(13) = byteChar
+         End If
+         
+         If ByteModify(0) = &H53 And ByteModify(1) = &H54 And ByteModify(2) = &H44 And ByteModify(3) = &H54 And ByteModify(4) = &H41 And ByteModify(5) = &H42 And ByteModify(6) = &H5 And ByteModify(7) = &H0 And ByteModify(8) = &H14 Then
+            ModifyTAB05 = intMove - 13
+         ElseIf ByteModify(0) = &H4F And ByteModify(1) = &H56 And ByteModify(2) = &H52 And ByteModify(3) = &H49 And ByteModify(4) = &H44 And ByteModify(5) = &H45 And ByteModify(6) = &H5 And ByteModify(7) = &H0 Then 'ovride
+            If ModifyTAB05 <> 0 And ModifyTAB05_Ovr = 0 Then
+               ModifyTAB05_Ovr = (intMove - 13) + 64
+               Exit Do
+            End If
+         End If
+         intMove = intMove + 1
+      Loop
+      intMove = 0
+      strPROFormat = ""
+      strPROValue = ""
+      If ModifyTAB05_Ovr > 0 Then
+         Seek #intReadFile, ModifyTAB05_Ovr
+           Do While (Not (EOF(intReadFile)))
+            Get #intReadFile, , byteChar
+            If Len(strPROFormat) < 18 Then
+               strPROFormat = strPROFormat & Chr(byteChar)
+            ElseIf Len(strPROValue) < 18 Then
+               strPROValue = strPROValue & Chr(byteChar)
+            Else
+               Exit Do
+            End If
+         Loop
+         'strMeterID2 = Transform_MeterID2(strPROFormat, strPROValue, strTPC_MeterID2)
+         strMeterID2 = Transform_MeterID2("NYYYYYYYYNYYYYYYYY", strPROValue, strTPC_MeterID2)
+         Close #intReadFile
+         intLoop = 1
+         '------------------------------------------------------------------------------------------
+    
+         intWriteFile = FreeFile
+         If Option1.Value = True Then
+            Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+         ElseIf Option2.Value = True Then
+            Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+         End If
+         
+         Seek #intWriteFile, (ModifyTAB05_Ovr + 18)
+    
+         intMovePUT = 0
+         intMove = 0
+         Do While (Not (EOF(intWriteFile)))
+            If intLoop <= Len(strMeterID2) Then
+               byteChar = Asc(Mid(strMeterID2, intLoop, 1))
+               If Not (EOF(intWriteFile)) Then
+                  Put #intWriteFile, , byteChar
+               End If
+               intLoop = intLoop + 1
+            Else
+               Exit Do
+            End If
+         Loop
+         Close #intWriteFile
+      Else
+         Close #intReadFile
+      End If
+      strFileName = Dir
+      End If ' None I210
+    Loop '
+End If
+
+End Sub
+Function Transform_MeterID2(strFormatTemp As String, strValueTemp As String, intMeterID2Temp) As String
+Dim strPROFormat As String
+Dim strOutput As String
+Dim intMeterID2 As Integer
+Dim strPROValue As String
+Dim strFormat As String
+Dim intLoop As Integer
+Dim modifyLength As Integer
+Dim strLength As Integer
+
+'strPROFormat = "NYYYYYYYYNYYYYYYYY"
+strPROFormat = strFormatTemp
+ strPROValue = strValueTemp
+intMeterID2 = intMeterID2Temp
+strOutput = Str(intMeterID2)
+modifyLength = Len(strPROFormat) - InStrRev(strPROFormat, "N")
+If modifyLength >= Len(Str(intMeterID2)) Then
+   strOutput = Left(strPROFormat, (Len(strPROFormat) - Len(Str(intMeterID2)) + 1))
+   strOutput = strOutput & Trim(Str(intMeterID2))
+ElseIf modifyLength < Len(Str(intMeterID2)) Then
+   strOutput = Left(strPROFormat, (Len(strPROFormat) - modifyLength))
+   strOutput = strOutput & Left(Trim(Str(intMeterID2)), modifyLength)
+End If
+strPROFormat = strOutput
+strOutput = ""
+For intLoop = 1 To Len(strPROFormat)
+    If StrComp(Mid(strPROFormat, intLoop, 1), "N") = 0 Then
+       strOutput = strOutput & Mid(strPROValue, intLoop, 1)
+    ElseIf StrComp(Mid(strPROFormat, intLoop, 1), "Y") = 0 Then
+       strOutput = strOutput & Mid(strPROValue, intLoop, 1)
+    Else
+       strOutput = strOutput & Mid(strPROFormat, intLoop, 1)
+    End If
+Next intLoop
+Transform_MeterID2 = strOutput
+End Function
+Public Sub ModifyProEventlog(strDirectory As String, strTPC As String, VersionWin As Boolean)  '修改原PRO有二組M68資料，將符合新版的9010的刪除
+Dim ModifyTAB68 As Integer
+Dim ModifyHeaderEnd As Integer
+Dim intReadFile As Integer
+Dim intWriteFile As Integer
+Dim intMove As Integer
+Dim intMovePUT As Integer
+Dim ByteModify(37) As Byte
+Dim CHByte As Byte
+Dim intLoop As Integer
+Dim blnPath As Boolean
+Dim strFileName As String
+Dim strDecFileName As String
+Dim byteChar As Byte
+Dim FinalTableS As Integer
+Dim FinalTableD As Integer
+Dim intM68Length As Integer
+Dim ModifyTAB75 As Integer
+Dim pId As Long, pHnd As Long ' 分別宣告 Process Id 及 Process Handle 變數
+Dim strPROValue As String
+Dim strPROFormat As String
+Dim strMeterID2 As String
+Dim intS75Length As Integer
+Dim ByteS75() As Byte
+DoEvents
+blnPath = False
+
+'檢查放置kv2c.PRO路徑是否存在
+
+If VersionWin = True Then
+   If Dir(App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\Programs\" & strDirectory, vbDirectory) <> "" Then
+      blnPath = True
+   End If
+Else
+   If Dir(App.path & "\program\" & strTPC & "\" & Text3.Text & "\Programs\" & strDirectory, vbDirectory) <> "" Then
+      blnPath = True
+   End If
+End If
+
+If blnPath = True Then
+    strFileName = Dir(App.path & "\MMCOMM\PROGRAMS\" & strDirectory & "\*.PRO")
+    Do
+      If strFileName = "" Then Exit Do
+      intReadFile = FreeFile
+      If VersionWin = True Then
+         Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intReadFile
+      Else
+         Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intReadFile
+      End If
+
+      '尋找stdtabd
+      intMove = 0
+      ModifyTAB68 = 0
+      ModifyHeaderEnd = 0
+      FinalTableS = 0
+      FinalTableD = 0
+      intM68Length = 0
+      ModifyTAB75 = 0
+      intS75Length = 0
+      Do While (Not (EOF(intReadFile)))
+         Get #intReadFile, , byteChar
+         
+         If intMove <= 13 Then
+            ByteModify(intMove) = byteChar
+         Else
+            For intLoop = 0 To 12
+                ByteModify(intLoop) = ByteModify(intLoop + 1)
+            Next
+            ByteModify(13) = byteChar
+         End If
+         
+         If ByteModify(0) = &H53 And ByteModify(1) = &H54 And ByteModify(2) = &H44 And ByteModify(3) = &H54 And ByteModify(4) = &H41 And ByteModify(5) = &H42 And ByteModify(6) = &H4B And ByteModify(7) = &H0 Then
+            ModifyTAB75 = (intMove - 13) + 24
+            intS75Length = ByteModify(8)
+            ReDim ByteS75(intS75Length)
+         End If
+         intMove = intMove + 1
+      Loop
+      intMove = 0
+      strPROFormat = ""
+      strPROValue = ""
+      If ModifyTAB75 > 0 Then
+         Seek #intReadFile, ModifyTAB75
+         Do While (Not (EOF(intReadFile)))
+            Get #intReadFile, , byteChar
+            If intMove < intS75Length Then
+               ByteS75(intMove) = byteChar
+            Else
+               Exit Do
+            End If
+            intMove = intMove + 1
+         Loop
+         Close #intReadFile
+         intLoop = 0
+         '修改Item #7 Table Read
+         ByteS75(0) = ByteS75(0) And &H7F
+         
+         '修改Item #8 Table Write
+         ByteS75(1) = ByteS75(1) And &HFE
+         'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+         '------------------------------------------------------------------------------------------
+         
+         strDecFileName = Left(strFileName, InStr(strFileName, ".") - 1)
+         intWriteFile = FreeFile
+         If VersionWin = True Then
+            Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+         Else
+            Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+         End If
+         Seek #intWriteFile, ModifyTAB75
+         intMovePUT = 0
+         intMove = 0
+         intLoop = 0
+         Do While (Not (EOF(intWriteFile)))
+            If intLoop < UBound(ByteS75) Then
+               If Not (EOF(intWriteFile)) Then
+                  Put #intWriteFile, , ByteS75(intLoop)
+               End If
+               intLoop = intLoop + 1
+            Else
+               Exit Do
+            End If
+         Loop
+         Close #intWriteFile
+      Else
+         Close #intReadFile
+      End If
+         
+         
+      strFileName = Dir
+    Loop
+End If
+
+'Kill (App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c\*.old")
+
+End Sub
+
+
+Public Sub ModifyProVoltEventlog(strDirectory As String, strTPC As String, VersionWin As Boolean)   '修改原PRO有二組M68資料，將符合新版的9010的刪除
+Dim ModifyHeaderEnd As Integer
+Dim intReadFile As Integer
+Dim intWriteFile As Integer
+Dim intMove As Integer
+Dim intMovePUT As Integer
+Dim ByteModify(37) As Byte
+Dim intLoop As Integer
+Dim blnPath As Boolean
+Dim strFileName As String
+Dim strDecFileName As String
+Dim byteChar As Byte
+Dim ModifyTABM111 As Integer
+Dim intM111Length As Integer
+Dim ByteM111() As Byte
+DoEvents
+blnPath = False
+
+If VersionWin = True Then
+   If Dir(App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\Programs\" & strDirectory, vbDirectory) <> "" Then
+      blnPath = True
+   End If
+Else
+   If Dir(App.path & "\program\" & strTPC & "\" & Text3.Text & "\Programs\" & strDirectory, vbDirectory) <> "" Then
+      blnPath = True
+   End If
+End If
+
+If blnPath = True Then
+    strFileName = Dir(App.path & "\MMCOMM\PROGRAMS\" & strDirectory & "\*.PRO")
+    Do
+      If strFileName = "" Then Exit Do
+      intReadFile = FreeFile
+      If VersionWin = True Then
+         Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intReadFile
+      Else
+         Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intReadFile
+      End If
+      
+      '尋找stdtabd
+      intMove = 0
+      ModifyHeaderEnd = 0
+      intM111Length = 0
+      ModifyTABM111 = 0
+      Do While (Not (EOF(intReadFile)))
+         Get #intReadFile, , byteChar
+         
+         If intMove <= 13 Then
+            ByteModify(intMove) = byteChar
+         Else
+            For intLoop = 0 To 12
+                ByteModify(intLoop) = ByteModify(intLoop + 1)
+            Next
+            ByteModify(13) = byteChar
+         End If
+         
+         If ByteModify(0) = &H53 And ByteModify(1) = &H54 And ByteModify(2) = &H44 And ByteModify(3) = &H54 And ByteModify(4) = &H41 And ByteModify(5) = &H42 And ByteModify(6) = &H6F And ByteModify(7) = &H8 Then
+            ModifyTABM111 = (intMove - 13) + 24
+            intM111Length = ByteModify(8)
+            ReDim ByteM111(intM111Length)
+         End If
+         intMove = intMove + 1
+      Loop
+      intMove = 0
+      strPROFormat = ""
+      strPROValue = ""
+      If ModifyTABM111 > 0 Then
+         Seek #intReadFile, ModifyTABM111
+         Do While (Not (EOF(intReadFile)))
+            Get #intReadFile, , byteChar
+            If intMove < intM111Length Then
+               ByteM111(intMove) = byteChar
+            Else
+               Exit Do
+            End If
+            intMove = intMove + 1
+         Loop
+         Close #intReadFile
+         'For intLoop = 0 To UBound(ByteM111) - 1
+         '    Debug.Print Str(intLoop) & ". " & Hex(ByteM111(intLoop))
+         'Next intLoop
+         'Seek #intReadFile, 1
+         intLoop = 0
+         '修改Voltage Monitor Enabled &h01 -> &h00
+         ByteM111(0) = ByteM111(0) And &HFE
+         'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+         '------------------------------------------------------------------------------------------
+         strDecFileName = Left(strFileName, InStr(strFileName, ".") - 1)
+         intWriteFile = FreeFile
+         If VersionWin = True Then
+            Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\MMCOMM\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+         Else
+            Open App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\" & strDirectory & "\" & strFileName For Binary As #intWriteFile
+         End If
+
+         Seek #intWriteFile, ModifyTABM111
+         intMovePUT = 0
+         intMove = 0
+         intLoop = 0
+         Do While (Not (EOF(intWriteFile)))
+            If intLoop < UBound(ByteM111) Then
+               If Not (EOF(intWriteFile)) Then
+                  Put #intWriteFile, , ByteM111(intLoop)
+               End If
+               intLoop = intLoop + 1
+            Else
+               Exit Do
+            End If
+         Loop
+         Close #intWriteFile
+      Else
+         Close #intReadFile
+      End If
+      strFileName = Dir
+    Loop
+End If
+
+'Kill (App.path & "\program\" & strTPC & "\" & Text3.Text & "\PROGRAMS\kV2c\*.old")
+
+End Sub
+
+Function FindFiles(path As String, SearchStr As String, _
+    FileCount As Integer, DirCount As Integer, funName As String)
+    Dim filename As String   ' Walking filename variable.
+    Dim DirName As String    ' SubDirectory Name.
+    Dim dirNames() As String ' Buffer for directory name entries.
+    Dim nDir As Integer      ' Number of directories in this path.
+    Dim i As Integer         ' For-loop counter.
+    Dim strTemp As String
+    Dim max As Integer
+    Static X As Long
+      
+    On Error GoTo sysFileERR
+    
+    max = 0
+    Label6.Enabled = True
+    Label6.Visible = True
+    
+    If Right(path, 1) <> "\" Then path = path & "\"
+    ' Search for subdirectories.
+    nDir = 0
+    ReDim dirNames(nDir)
+    DirName = Dir(path, vbDirectory Or vbHidden Or vbArchive Or vbReadOnly _
+                          Or vbSystem)  ' Even if hidden, and so on.
+    Do While Len(DirName) > 0
+       ' Ignore the current and encompassing directories.
+       If (DirName <> ".") And (DirName <> "..") Then
+          ' Check for directory with bitwise comparison.
+          If GetAttr(path & DirName) And vbDirectory Then
+             dirNames(nDir) = DirName
+             DirCount = DirCount + 1
+             nDir = nDir + 1
+             ReDim Preserve dirNames(nDir)
+          End If                           ' directories.
+sysFileERRCont:
+       End If
+       DirName = Dir()  ' Get next subdirectory.
+    Loop
+
+    ' Search through this directory and sum file sizes.
+    filename = Dir(path & SearchStr, vbNormal Or vbHidden Or vbSystem _
+    Or vbReadOnly Or vbArchive)
+    While Len(filename) <> 0
+       FindFiles = FindFiles + FileLen(path & filename)
+       FileCount = FileCount + 1
+          
+     '--------------------------------------------------------------------------------------
+      strTemp = Trim(path & filename)
+      
+      Select Case funName
+        Case "Kill"
+            Call Kill(strTemp)
+        
+        'GenerateEncryptDAT
+        Case "Encrypt"
+            Call GenerateEncryptDATA(strTemp, DATPassword)
+        
+        Case "Rename"
+            If FileExists(strTemp) Then
+                Name strTemp As path & "\S0000USC.DAT"
+            End If
+            
+        '20140929, Wuyo
+        Case "Add"
+            Dim tempStrArray() As String
+            Dim targetPath As String
+            Dim pathFileNum As Integer
+            Dim newPathStr As String
+            
+            ' 檔案要放的位置
+            tempStrArray = Split(strTemp, "\")
+            For i = 0 To UBound(tempStrArray) - 1
+                targetPath = targetPath & tempStrArray(i) & "\"
+            Next
+            
+            ' 檔案的內容路徑要跟 TxtF2_Link 或是 TxtF3_Link 內的前面一樣
+            tempStrArray = Split(TxtF2_Link.Text, "\")
+            For i = 0 To 1
+                newPathStr = newPathStr & tempStrArray(i) & "\"
+            Next i
+            
+            ' 依照宇強所提出的格式需求
+            pathFileNum = FreeFile
+            Open targetPath & "\path.ini" For Output As #pathFileNum
+            Print #pathFileNum, "[Path]"
+            Print #pathFileNum, "path=" & newPathStr
+      End Select
+     '--------------------------------------------------------------------------------------
+     
+       filename = Dir()  ' Get next file.
+    Wend
+
+    ' If there are sub-directories..
+    If nDir > 0 Then
+       ' Recursively walk into them
+       For i = 0 To nDir - 1
+         FindFiles = FindFiles + FindFiles(path & dirNames(i) & "\", _
+          SearchStr, FileCount, DirCount, funName)
+       Next i
+    End If
+
+AbortFunction:
+    Exit Function
+sysFileERR:
+    If Right(DirName, 4) = ".sys" Then
+      Resume sysFileERRCont ' Known issue with pagefile.sys
+    Else
+      Debug.Print "Error: " & Err.Number & " - " & Err.Description, , _
+       "Unexpected Error In FindFiles"
+       
+       Debug.Print "path: " & path & ", SearchStr: " & SearchStr & _
+        ", FileCount: " & FileCount & ", DirCount: " & DirCount
+      Resume AbortFunction
+    End If
+End Function
+
+Private Function CopyFindFile(ByVal sFol As String, sFile As String, _
+   nDirs As Long, nFiles As Long, strDec As String) As Currency
+   
+   Dim tFld As Folder, tFil As File, filename As String
+   
+   On Error GoTo Catch
+   Set fld = fso.GetFolder(sFol)
+   filename = Dir(fso.BuildPath(fld.path, sFile), vbNormal Or _
+                  vbHidden Or vbSystem Or vbReadOnly)
+   While Len(filename) <> 0
+      CopyFindFile = CopyFindFile + FileLen(fso.BuildPath(fld.path, _
+      filename))
+      nFiles = nFiles + 1
+      
+      '------------------------------------------------------------------------------
+      Dim NewPath As String
+      NewPath = eeTargetPath(fld.path, strDec)
+      FileCopy fld.path & "\" & filename, NewPath & "\" & filename
+      '------------------------------------------------------------------------------
+      
+      filename = Dir()  ' Get next file
+      DoEvents
+   Wend
+   nDirs = nDirs + 1
+   If fld.SubFolders.Count > 0 Then
+      For Each tFld In fld.SubFolders
+         DoEvents
+         
+         '--------------------------------------------------
+         NewPath = ""
+         NewPath = eeTargetPath(tFld.path, strDec)
+         ' New bug
+         If Dir$(NewPath, vbDirectory) = vbNullString Then
+            MkDir (NewPath)
+         Else
+            'MsgBox "Exists"
+         End If
+         
+         '--------------------------------------------------
+         
+         CopyFindFile = CopyFindFile + CopyFindFile(tFld.path, sFile, nDirs, nFiles, strDec)
+      Next
+   End If
+   Exit Function
+   
+Catch:  filename = ""
+    Debug.Print Err.Description
+       Resume Next
+      
+End Function
+
+Private Function eeTargetPath(SourcePath As String, targetPath As String) As String
+    Dim indWin7 As String
+    Dim i As Integer
+    Dim pathData() As String
+    Dim MyPath As String
+    
+    pathData = Split(SourcePath, "\")
+    MyPath = targetPath
+    
+    For i = 0 To UBound(pathData)
+        If pathData(i) = "Win7" Then
+            indWin7 = i
+        End If
+    Next
+    
+    If indWin7 + 1 > UBound(pathData) Then
+        MyPath = targetPath
+    Else
+        For i = indWin7 + 1 To UBound(pathData)
+            MyPath = MyPath & "\" & pathData(i)
+        Next
+    End If
+    
+    'Debug.Print NewPath
+    
+    eeTargetPath = MyPath
+    
+End Function
